@@ -10,8 +10,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-  // ★★★ study-app.html 과 동일한 Firebase 설정을 붙여넣으세요 ★★★
   const firebaseConfig = {
     apiKey: "AIzaSyB2TsyqMli2wmdcNLILmaVmcOT1aAG-W8g",
     authDomain: "project-benkyo.firebaseapp.com",
@@ -24,7 +24,67 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
   const dataRef = ref(db, 'studyData');
+
+  window.googleLogin = async function() {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch(e) { console.warn('로그인 실패:', e); }
+  };
+  window.googleLogout = async function() { await signOut(auth); };
+
+  // 허용된 이메일 (엄마만)
+  const ALLOWED_EMAIL = 'kas2255@gmail.com';
+
+  let unsubscribe = null;
+
+  onAuthStateChanged(auth, (user) => {
+    const lockScreen = document.getElementById('lockScreen');
+    const appContent = document.getElementById('appContent');
+    const userInfo = document.getElementById('userInfo');
+    const lockError = document.getElementById('lockError');
+    if (user) {
+      if (user.email === ALLOWED_EMAIL) {
+        // 허용된 계정 → 앱 표시
+        if (lockScreen) lockScreen.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        if (userInfo) userInfo.textContent = user.email;
+        // 데이터 구독 시작
+        if (!unsubscribe) {
+          unsubscribe = onValue(dataRef, (snapshot) => {
+            const d = snapshot.val();
+            if (!d) return;
+            lastData = d;
+            if (d.isStudying) {
+              liveBaseSec = d.totalSec;
+              liveStartTs = Date.now();
+              if (!liveInterval) {
+                liveInterval = setInterval(() => {
+                  if (!lastData?.isStudying) { clearInterval(liveInterval); liveInterval = null; return; }
+                  const elapsed = Math.floor((Date.now() - liveStartTs) / 1000);
+                  renderAll({ ...lastData, totalSec: liveBaseSec + elapsed });
+                }, 1000);
+              }
+            } else {
+              clearInterval(liveInterval); liveInterval = null;
+            }
+            renderAll(d);
+          });
+        }
+      } else {
+        // 허용되지 않은 계정 → 로그아웃
+        signOut(auth);
+        if (lockError) lockError.textContent = '접근 권한이 없는 계정이에요 🙅';
+      }
+    } else {
+      if (lockScreen) lockScreen.style.display = 'flex';
+      if (appContent) appContent.style.display = 'none';
+      if (lockError) lockError.textContent = '';
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    }
+  });
 
   const COLORS = ['#c97d4e','#6b8f71','#5b7fa6','#9b6bb5','#c0574a','#b07d30','#4a8fa0','#a06b7a'];
 
@@ -40,32 +100,8 @@
 
   let liveInterval = null;
   let lastData = null;
-  let liveStartTs = null; // 공부 시작한 시각 (클라이언트 기준)
-  let liveBaseSec = 0;    // Firebase에서 받은 totalSec 기준값
-
-  onValue(dataRef, (snapshot) => {
-    const d = snapshot.val();
-    if (!d) return;
-    lastData = d;
-
-    // 공부 중이면 클라이언트에서 매초 카운트업
-    if (d.isStudying) {
-      liveBaseSec = d.totalSec;
-      liveStartTs = Date.now();
-      if (!liveInterval) {
-        liveInterval = setInterval(() => {
-          if (!lastData?.isStudying) { clearInterval(liveInterval); liveInterval = null; return; }
-          const elapsed = Math.floor((Date.now() - liveStartTs) / 1000);
-          renderAll({ ...lastData, totalSec: liveBaseSec + elapsed });
-        }, 1000);
-      }
-    } else {
-      clearInterval(liveInterval);
-      liveInterval = null;
-    }
-
-    renderAll(d);
-  });
+  let liveStartTs = null;
+  let liveBaseSec = 0;
 
   function renderAll(d) {
     // 상태 뱃지
@@ -331,6 +367,36 @@ body {
   font-size: 0.74rem;
   color: var(--text-muted);
 }
+
+/* ══ 비밀번호 화면 ══ */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.lock-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 36px 32px; text-align: center; width: 300px;
+}
+.lock-icon { font-size: 2.4rem; margin-bottom: 10px; }
+.lock-title { font-family: 'Nanum Gothic Coding', monospace; font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.lock-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px; }
+.lock-input {
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 9px; font-family: 'Gowun Dodum', sans-serif;
+  font-size: 1rem; outline: none; background: var(--surface2);
+  text-align: center; letter-spacing: 3px; margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+.lock-input:focus { border-color: var(--accent); }
+.lock-btn {
+  width: 100%; padding: 11px; border: none; border-radius: 9px;
+  background: var(--accent); color: #fff; font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.15s;
+}
+.lock-btn:hover { background: #b86c3c; }
+.lock-error { font-size: 0.78rem; color: var(--danger); margin-top: 8px; min-height: 1.2em; }
 .live-dot {
   display: inline-block;
   width: 6px; height: 6px;
@@ -345,9 +411,27 @@ body {
 </head>
 <body>
 
+<!-- ══ 구글 로그인 화면 ══ -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-icon">🐾</div>
+    <div class="lock-title">공부 현황판</div>
+    <div class="lock-sub">구글 계정으로 로그인하세요</div>
+    <button class="lock-btn" style="display:flex;align-items:center;justify-content:center;gap:10px;" onclick="googleLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M9 3.48c1.69 0 2.83.73 3.48 1.34l2.54-2.48C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.91 2.26C4.6 5.05 6.62 3.48 9 3.48z"/><path fill="#fff" d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.1.83-.64 2.08-1.84 2.92l2.84 2.2c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#fff" d="M3.88 10.78A5.54 5.54 0 0 1 3.58 9c0-.62.11-1.22.29-1.78L.96 4.96A9 9 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.92-2.26z"/><path fill="#fff" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.4-1.57-5.12-3.74L.95 13.04C2.44 15.98 5.48 18 9 18z"/></svg>
+      Google로 로그인
+    </button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<div id="appContent" style="display:none">
 <div class="header">
   <div class="header-title">🐾 우리 아이 공부 현황</div>
-  <div class="header-sub">실시간으로 자동 업데이트 돼요</div>
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:4px;">
+    <span id="userInfo" style="font-size:0.72rem;color:var(--text-muted);"></span>
+    <button onclick="googleLogout()" style="font-size:0.72rem;background:none;border:1px solid var(--border);border-radius:99px;padding:2px 10px;cursor:pointer;color:var(--text-muted);">로그아웃</button>
+  </div>
 </div>
 
 <div class="status-section">
@@ -402,6 +486,7 @@ body {
 <div class="footer">
   <span class="live-dot"></span>실시간 연결 중 · 마지막 업데이트: <span id="lastUpdated">-</span>
 </div>
+</div><!-- appContent end -->
 
 </body>
 </html>
