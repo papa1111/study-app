@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리 아이 공부 현황 🐾</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Nanum+Gothic+Coding:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ★★★ study-app.html 과 동일한 Firebase 설정을 붙여넣으세요 ★★★
+  const firebaseConfig = {
+    apiKey: "AIzaSyB2TsyqMli2wmdcNLILmaVmcOT1aAG-W8g",
+    authDomain: "project-benkyo.firebaseapp.com",
+    databaseURL: "https://project-benkyo-default-rtdb.firebaseio.com",
+    projectId: "project-benkyo",
+    storageBucket: "project-benkyo.firebasestorage.app",
+    messagingSenderId: "640262755618",
+    appId: "1:640262755618:web:003bdc8b595486a103817b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dataRef = ref(db, 'studyData');
+
+  const COLORS = ['#c97d4e','#6b8f71','#5b7fa6','#9b6bb5','#c0574a','#b07d30','#4a8fa0','#a06b7a'];
+
+  function fmt(sec) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+  function fmtShort(sec) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  let liveInterval = null;
+  let lastData = null;
+  let liveStartTs = null; // 공부 시작한 시각 (클라이언트 기준)
+  let liveBaseSec = 0;    // Firebase에서 받은 totalSec 기준값
+
+  onValue(dataRef, (snapshot) => {
+    const d = snapshot.val();
+    if (!d) return;
+    lastData = d;
+
+    // 공부 중이면 클라이언트에서 매초 카운트업
+    if (d.isStudying) {
+      liveBaseSec = d.totalSec;
+      liveStartTs = Date.now();
+      if (!liveInterval) {
+        liveInterval = setInterval(() => {
+          if (!lastData?.isStudying) { clearInterval(liveInterval); liveInterval = null; return; }
+          const elapsed = Math.floor((Date.now() - liveStartTs) / 1000);
+          renderAll({ ...lastData, totalSec: liveBaseSec + elapsed });
+        }, 1000);
+      }
+    } else {
+      clearInterval(liveInterval);
+      liveInterval = null;
+    }
+
+    renderAll(d);
+  });
+
+  function renderAll(d) {
+    // 상태 뱃지
+    const badge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    if (d.isStudying) {
+      badge.className = 'status-badge studying';
+      statusText.textContent = d.currentSubject ? `📖 ${d.currentSubject} 공부 중` : '📖 공부 중';
+    } else {
+      badge.className = 'status-badge resting';
+      statusText.textContent = '😴 쉬는 중';
+    }
+
+    // 총 공부 시간
+    document.getElementById('totalTime').textContent = fmt(d.totalSec || 0);
+
+    // 목표 달성률
+    const goalSec = d.goalSec || 0;
+    const totalSec = d.totalSec || 0;
+    const pct = goalSec > 0 ? Math.min(Math.round(totalSec / goalSec * 100), 100) : 0;
+    document.getElementById('goalPct').textContent = goalSec > 0 ? `목표 ${Math.round(goalSec/3600)}h · ${pct}% 달성` : '목표 미설정';
+    document.getElementById('goalBar').style.width = pct + '%';
+
+    // 세션 / 할일
+    document.getElementById('sessionCount').textContent = d.sessionCount || 0;
+    document.getElementById('taskCount').textContent = `${d.tasksDone || 0} / ${d.tasksTotal || 0}`;
+
+    // 마지막 업데이트
+    if (d.lastUpdated) {
+      const ago = Math.floor((Date.now() - d.lastUpdated) / 1000);
+      document.getElementById('lastUpdated').textContent =
+        ago < 60 ? `방금 전` : `${Math.floor(ago/60)}분 전`;
+    }
+
+    // 과목별 차트
+    const bySubject = d.bySubject || {};
+    const entries = Object.entries(bySubject)
+      .map(([id, v]) => ({ ...v, id }))
+      .filter(v => v.sec > 0)
+      .sort((a, b) => b.sec - a.sec);
+
+    const chartWrap = document.getElementById('subjectChart');
+    if (entries.length === 0) {
+      chartWrap.innerHTML = '<div class="chart-empty">아직 공부 기록이 없어요</div>';
+    } else {
+      const maxSec = entries[0].sec;
+      chartWrap.innerHTML = entries.map(e => {
+        const barColor = COLORS[e.colorIdx % COLORS.length];
+        return `
+          <div class="chart-row">
+            <div class="chart-label">${e.name}</div>
+            <div class="chart-bar-bg">
+              <div class="chart-bar-fill" style="width:${(e.sec/maxSec*100).toFixed(1)}%;background:${barColor}"></div>
+            </div>
+            <div class="chart-val">${fmtShort(e.sec)}</div>
+          </div>`;
+      }).join('');
+    }
+
+    // 고양이 이모지 상태
+    const hours = totalSec / 3600;
+    const catEl = document.getElementById('catEmoji');
+    if (d.isStudying) catEl.textContent = '🐱';
+    else if (hours >= 4) catEl.textContent = '😸';
+    else if (hours >= 2) catEl.textContent = '😺';
+    else catEl.textContent = '🙀';
+
+    // 응원 메시지
+    const msg = document.getElementById('cheerMsg');
+    if (d.isStudying) msg.textContent = '지금 열심히 공부하고 있어요! 💪';
+    else if (hours >= 6) msg.textContent = '오늘 정말 대단한데요! 🌟';
+    else if (hours >= 4) msg.textContent = '오늘도 잘 하고 있어요! 👏';
+    else if (hours >= 2) msg.textContent = '꾸준히 하고 있네요 😊';
+    else if (hours > 0) msg.textContent = '공부 시작했어요!';
+    else msg.textContent = '아직 공부를 시작하지 않았어요';
+  }
+</script>
+
+<style>
+:root {
+  --bg: #fdf8f4;
+  --surface: #ffffff;
+  --surface2: #f5f0eb;
+  --border: #e8e0d8;
+  --text: #2a2520;
+  --text-muted: #9a9088;
+  --accent: #c97d4e;
+  --green: #5a8f62;
+  --shadow: 0 2px 16px rgba(42,37,32,0.08);
+  --radius: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Gowun Dodum', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0 0 60px;
+}
+
+/* 헤더 */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 24px 16px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.header-title {
+  font-family: 'Nanum Gothic Coding', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.header-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* 상태 뱃지 */
+.status-section {
+  display: flex;
+  justify-content: center;
+  padding: 28px 20px 0;
+}
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 99px;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: all 0.4s;
+}
+.status-badge.studying {
+  background: #e8f5ea;
+  color: var(--green);
+  border: 2px solid #b4ddb8;
+  animation: pulse 2s ease-in-out infinite;
+}
+.status-badge.resting {
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 2px solid var(--border);
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(90,143,98,0.3); }
+  50% { box-shadow: 0 0 0 10px rgba(90,143,98,0); }
+}
+
+/* 카드 그리드 */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  max-width: 600px;
+  margin: 20px auto 0;
+  padding: 0 16px;
+}
+@media (max-width: 480px) { .cards { grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 12px; } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 16px;
+  text-align: center;
+}
+.card-icon { font-size: 1.6rem; margin-bottom: 6px; }
+.card-val {
+  font-family: 'Nanum Gothic Coding', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.card-lbl { font-size: 0.72rem; color: var(--text-muted); }
+
+/* 총 공부 시간 카드 (넓게) */
+.card-wide {
+  grid-column: 1 / -1;
+  padding: 22px 20px;
+}
+.card-wide .card-val {
+  font-size: 2.8rem;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+.goal-bar-wrap {
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+.goal-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 1s ease;
+}
+.goal-pct { font-size: 0.74rem; color: var(--text-muted); }
+
+/* 고양이 + 응원 */
+.cheer-section {
+  max-width: 600px;
+  margin: 14px auto 0;
+  padding: 0 16px;
+}
+.cheer-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cat-big { font-size: 3rem; line-height: 1; }
+.cheer-text { flex: 1; }
+.cheer-msg { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+.cheer-sub { font-size: 0.76rem; color: var(--text-muted); }
+
+/* 과목별 차트 */
+.chart-section {
+  max-width: 600px;
+  margin: 14px auto 0;
+  padding: 0 16px;
+}
+.section-title {
+  font-size: 0.71rem;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.chart-row { display: flex; align-items: center; gap: 10px; }
+.chart-label { width: 44px; font-size: 0.82rem; text-align: right; flex-shrink: 0; }
+.chart-bar-bg { flex: 1; height: 26px; background: var(--surface2); border-radius: 6px; overflow: hidden; }
+.chart-bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(.34,1.2,.64,1); min-width: 4px; }
+.chart-val { font-family: 'Nanum Gothic Coding', monospace; font-size: 0.75rem; width: 60px; text-align: right; flex-shrink: 0; color: var(--text-muted); }
+.chart-empty { color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 16px 0; }
+
+/* 마지막 업데이트 */
+.footer {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.live-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: blink 1.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🐾 우리 아이 공부 현황</div>
+  <div class="header-sub">실시간으로 자동 업데이트 돼요</div>
+</div>
+
+<div class="status-section">
+  <div class="status-badge resting" id="statusBadge">
+    <span id="statusText">불러오는 중...</span>
+  </div>
+</div>
+
+<div class="cards">
+  <!-- 총 공부 시간 -->
+  <div class="card card-wide">
+    <div class="card-lbl" style="margin-bottom:6px">오늘 총 공부 시간</div>
+    <div class="card-val" id="totalTime">00:00:00</div>
+    <div class="goal-bar-wrap"><div class="goal-bar-fill" id="goalBar" style="width:0%"></div></div>
+    <div class="goal-pct" id="goalPct">목표 미설정</div>
+  </div>
+
+  <!-- 세션 수 -->
+  <div class="card">
+    <div class="card-icon">⏱</div>
+    <div class="card-val" id="sessionCount">0</div>
+    <div class="card-lbl">공부 세션</div>
+  </div>
+
+  <!-- 할 일 -->
+  <div class="card">
+    <div class="card-icon">✅</div>
+    <div class="card-val" id="taskCount">0 / 0</div>
+    <div class="card-lbl">할 일 완료</div>
+  </div>
+</div>
+
+<!-- 고양이 + 응원 -->
+<div class="cheer-section">
+  <div class="cheer-card">
+    <div class="cat-big" id="catEmoji">🐱</div>
+    <div class="cheer-text">
+      <div class="cheer-msg" id="cheerMsg">불러오는 중...</div>
+      <div class="cheer-sub">오늘도 응원해요 💕</div>
+    </div>
+  </div>
+</div>
+
+<!-- 과목별 차트 -->
+<div class="chart-section">
+  <div class="section-title">과목별 공부 시간</div>
+  <div class="chart-card" id="subjectChart">
+    <div class="chart-empty">불러오는 중...</div>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="live-dot"></span>실시간 연결 중 · 마지막 업데이트: <span id="lastUpdated">-</span>
+</div>
+
+</body>
+</html>
