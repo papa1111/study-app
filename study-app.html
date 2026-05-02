@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>공부 도우미</title>
+<title>공부 시간</title>
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -443,6 +443,67 @@ select { cursor: pointer; }
 }
 .p-clear-btn:hover { color: var(--danger); }
 
+/* ══ 모의고사 타이머 ══ */
+.mock-presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.mock-preset-btn {
+  padding: 10px 8px; border: 1.5px solid var(--border); border-radius: 10px;
+  background: var(--surface2); cursor: pointer; text-align: center;
+  font-family: 'Gowun Dodum', sans-serif; transition: all .15s;
+}
+.mock-preset-btn:hover { border-color: var(--accent); background: #fdf0e8; }
+.mock-preset-btn.selected { border-color: var(--accent); background: #fdf0e8; }
+.mock-preset-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.mock-preset-min { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.mock-subject-lbl { font-size: 1rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; }
+.mock-digits {
+  font-family: 'Nanum Gothic Coding', monospace;
+  font-size: 4.5rem; font-weight: 700; color: var(--text);
+  letter-spacing: 4px; line-height: 1; margin-bottom: 16px;
+  transition: color .3s;
+}
+.mock-digits.warn { color: #c0574a; }
+.mock-digits.danger { color: var(--danger); animation: blink-danger .8s ease-in-out infinite; }
+@keyframes blink-danger { 0%,100%{opacity:1} 50%{opacity:.4} }
+.mock-progress-wrap { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+.mock-progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .5s, background .3s; }
+.mock-time-lbl { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.mock-warning { font-size: 0.82rem; font-weight: 700; color: #c0574a; margin-top: 6px; }
+.mock-done-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+}
+.mock-done-box {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 32px 36px; text-align: center;
+}
+.mock-done-icon { font-size: 3rem; margin-bottom: 8px; }
+.mock-done-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.mock-done-sub { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
+.mock-history-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.mock-history-item:last-child { border-bottom: none; }
+.mock-h-subject { font-size: 0.85rem; font-weight: 700; color: var(--text); flex: 1; }
+.mock-h-time { font-size: 0.8rem; font-family: 'Nanum Gothic Coding', monospace; color: var(--accent); }
+.mock-h-date { font-size: 0.72rem; color: var(--text-muted); }
+
+/* 카운트다운 오버레이 */
+.countdown-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+}
+.countdown-num {
+  font-family: 'Nanum Gothic Coding', monospace;
+  font-size: 8rem; font-weight: 700; color: #fff;
+  line-height: 1; animation: cdPop .4s ease;
+}
+.countdown-sub { font-size: 1rem; color: rgba(255,255,255,.7); }
+@keyframes cdPop {
+  0% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* ══ 비밀번호 화면 ══ */
 .lock-screen {
   position: fixed; inset: 0; z-index: 9999;
@@ -506,6 +567,7 @@ select { cursor: pointer; }
   <div class="nav-tabs">
     <div class="nav-tab active"  onclick="switchTab('main')">⏱ 타이머 · 체크리스트</div>
     <div class="nav-tab"         onclick="switchTab('passage')">📖 지문 타이머</div>
+    <div class="nav-tab"         onclick="switchTab('mock')">🕐 모의고사</div>
     <div class="nav-tab"         onclick="switchTab('stats')">📊 통계</div>
     <div class="nav-tab"         onclick="switchTab('settings')">⚙ 과목 설정</div>
   </div>
@@ -658,6 +720,47 @@ select { cursor: pointer; }
       </div>
       <div id="pRecordList"><div class="p-empty">아직 기록이 없어요</div></div>
     </div>
+  </div>
+</div>
+
+<!-- ══ 모의고사 ══ -->
+<div class="page" id="page-mock">
+  <div class="stats-page">
+
+    <!-- 과목 선택 -->
+    <div class="stats-card" id="mockSetupCard">
+      <div class="stats-title">과목 선택</div>
+      <div class="mock-presets" id="mockPresets"></div>
+      <div class="row" style="margin-top:12px;gap:8px;align-items:center">
+        <input type="number" id="mockCustomMin" placeholder="직접 입력 (분)" min="1" max="999" style="flex:1">
+        <button class="btn btn-muted" onclick="mockSetCustom()">설정</button>
+      </div>
+    </div>
+
+    <!-- 타이머 -->
+    <div class="stats-card" id="mockTimerCard">
+      <div style="text-align:center">
+        <div class="mock-subject-lbl" id="mockSubjectLbl">국어</div>
+        <div class="mock-digits" id="mockDigits">80:00</div>
+        <div class="mock-progress-wrap">
+          <div class="mock-progress-fill" id="mockProgressFill" style="width:100%"></div>
+        </div>
+        <div class="mock-time-lbl" id="mockTimeLbl">80분 · 0% 경과</div>
+        <div class="mock-warning" id="mockWarning" style="display:none"></div>
+      </div>
+      <div class="btns" style="justify-content:center;margin-top:16px;gap:8px">
+        <button class="btn btn-accent btn-lg" id="mockBtnStart" onclick="mockStart()">시작</button>
+        <button class="btn btn-muted btn-lg"  id="mockBtnPause" onclick="mockPause()" style="display:none">일시정지</button>
+        <button class="btn btn-muted"         id="mockBtnReset" onclick="mockReset()">초기화</button>
+      </div>
+    </div>
+
+    <!-- 기록 -->
+    <div class="stats-card">
+      <div class="stats-title">모의고사 기록</div>
+      <div id="mockHistoryList"><div class="empty-msg">아직 기록이 없어요</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -839,10 +942,11 @@ function switchTab(name) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  const idx = {main:0, passage:1, stats:2, settings:3}[name];
+  const idx = {main:0, passage:1, mock:2, stats:3, settings:4}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if (name==='stats')    { renderStats(); loadWeeklyChart(); }
   if (name==='settings') renderSettings();
+  if (name==='mock')     { renderMockPresets(); renderMockHistory(); }
 }
 
 // ═══════════════════════════════════
@@ -1019,8 +1123,11 @@ function updateCatRing(liveTotalSec) {
 // ═══════════════════════════════════
 function renderClSubjectSelect() {
   const sel=document.getElementById('clSubjectSelect');
+  const prevVal = sel.value; // 현재 선택값 저장
   if (subjects.length===0) { sel.innerHTML='<option>과목 없음</option>'; return; }
   sel.innerHTML=subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  // 이전 선택값이 아직 존재하면 복원
+  if (prevVal && subjects.find(s=>s.id===prevVal)) sel.value=prevVal;
 }
 function renderClFilter() {
   const wrap=document.getElementById('clFilter');
@@ -1131,22 +1238,20 @@ function loadWeeklyChart() {
 
     const dayLabels = ['일','월','화','수','목','금','토'];
     wrap.innerHTML = `
-      <div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px 0;">
+      <div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:4px 4px 0;">
         ${days.map(d => {
           const sec = allData[d]?.totalSec || 0;
-          const pct = (sec / maxSec * 100).toFixed(1);
+          const barH = Math.round(sec / maxSec * 96);
           const achieved = allData[d]?.goalAchieved;
           const isToday = d === todayStr();
-          const label = dayLabels[new Date(d).getDay()];
+          const label = dayLabels[new Date(d + 'T12:00:00').getDay()];
           const mm = Math.floor(sec/60);
           const hh = Math.floor(mm/60);
           const tip = sec > 0 ? (hh > 0 ? `${hh}h${mm%60}m` : `${mm}m`) : '-';
           return `
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="font-size:.68rem;color:var(--text-muted)">${tip}</div>
-              <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
-                <div style="width:100%;height:${pct}%;min-height:${sec>0?'4px':'0'};background:${achieved?'var(--green)':isToday?'var(--accent)':'#c8bdb5'};border-radius:4px 4px 0 0;transition:height .4s"></div>
-              </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:120px;justify-content:flex-end;">
+              <div style="font-size:.64rem;color:var(--text-muted);line-height:1">${tip}</div>
+              <div style="width:100%;height:${barH}px;min-height:${sec>0?'4px':'2px'};background:${achieved?'var(--green)':isToday?'var(--accent)':'#c8bdb5'};border-radius:4px 4px 0 0;transition:height .4s"></div>
               <div style="font-size:.72rem;color:${isToday?'var(--accent)':'var(--text-muted)'};font-weight:${isToday?'700':'400'}">${label}</div>
             </div>`;
         }).join('')}
@@ -1186,12 +1291,32 @@ function pStart() {
     document.getElementById('pBtnNext').style.display='';
     return;
   }
-  pSec=0; pStart_=Date.now(); pRunning=true;
-  pInterval=setInterval(pTick,1000);
-  document.getElementById('pBtnStart').style.display='none';
-  document.getElementById('pBtnPause').style.display='';
-  document.getElementById('pBtnNext').style.display='';
-  pUpdateDisplay();
+  // 카운트다운 3..2..1
+  let count = 3;
+  const overlay = document.createElement('div');
+  overlay.className = 'countdown-overlay';
+  overlay.innerHTML = `<div class="countdown-num" id="cdNum">3</div><div class="countdown-sub">준비하세요!</div>`;
+  document.body.appendChild(overlay);
+  const cdInterval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      document.getElementById('cdNum').textContent = count;
+      document.getElementById('cdNum').style.animation = 'none';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.getElementById('cdNum').style.animation = 'cdPop .4s ease';
+      }));
+    } else {
+      clearInterval(cdInterval);
+      overlay.remove();
+      // 실제 타이머 시작
+      pSec=0; pStart_=Date.now(); pRunning=true;
+      pInterval=setInterval(pTick,1000);
+      document.getElementById('pBtnStart').style.display='none';
+      document.getElementById('pBtnPause').style.display='';
+      document.getElementById('pBtnNext').style.display='';
+      pUpdateDisplay();
+    }
+  }, 1000);
 }
 
 function pPause() {
@@ -1233,13 +1358,17 @@ function pClear() {
 function pRenderRecords() {
   const wrap=document.getElementById('pRecordList');
   if (pRecords.length===0) { wrap.innerHTML='<div class="p-empty">아직 기록이 없어요</div>'; return; }
-  wrap.innerHTML=pRecords.map((r,i)=>`
+  // 최신순 (역순) 렌더, 실제 인덱스는 원본 배열 기준
+  wrap.innerHTML=[...pRecords].reverse().map((r,revI)=>{
+    const realIdx = pRecords.length - 1 - revI;
+    return `
     <div class="p-record-item">
-      <div class="p-idx">${i+1}</div>
+      <div class="p-idx">${realIdx+1}</div>
       <div class="p-record-name">${esc(r.name)}</div>
       <div class="p-record-time">${fmtMS(r.sec)}</div>
-      <button class="p-record-del" onclick="pDeleteRecord(${i})">×</button>
-    </div>`).join('');
+      <button class="p-record-del" onclick="pDeleteRecord(${realIdx})">×</button>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════
@@ -1257,6 +1386,188 @@ function renderAll() {
 load();
 if (goalSec>0) document.getElementById('goalInput').value=Math.round(goalSec/3600);
 renderAll();
+
+// ═══════════════════════════════════
+// 모의고사 타이머
+// ═══════════════════════════════════
+const MOCK_PRESETS = [
+  { name:'국어', min:80, colorIdx:0 },
+  { name:'수학', min:100, colorIdx:1 },
+  { name:'영어', min:70, colorIdx:2 },
+  { name:'한국사', min:30, colorIdx:3 },
+  { name:'탐구①', min:30, colorIdx:4 },
+  { name:'탐구②', min:30, colorIdx:5 },
+];
+
+let mockSelected = MOCK_PRESETS[0];
+let mockTotalSec = MOCK_PRESETS[0].min * 60;
+let mockRemainSec = mockTotalSec;
+let mockRunning = false;
+let mockInterval = null;
+let mockHistory = JSON.parse(localStorage.getItem('mock_history')||'[]');
+
+function renderMockPresets() {
+  const wrap = document.getElementById('mockPresets');
+  wrap.innerHTML = MOCK_PRESETS.map((p,i) => `
+    <button class="mock-preset-btn ${mockSelected.name===p.name?'selected':''}"
+      onclick="mockSelectPreset(${i})">
+      <div class="mock-preset-name">${p.name}</div>
+      <div class="mock-preset-min">${p.min}분</div>
+    </button>`).join('');
+  mockUpdateDisplay();
+}
+
+function mockSelectPreset(i) {
+  if (mockRunning) { showToast('타이머 진행 중엔 변경할 수 없어요'); return; }
+  mockSelected = MOCK_PRESETS[i];
+  mockTotalSec = mockSelected.min * 60;
+  mockRemainSec = mockTotalSec;
+  renderMockPresets();
+}
+
+function mockSetCustom() {
+  if (mockRunning) { showToast('타이머 진행 중엔 변경할 수 없어요'); return; }
+  const v = parseInt(document.getElementById('mockCustomMin').value);
+  if (!v || v < 1) { showToast('1분 이상 입력해주세요'); return; }
+  mockSelected = { name: '직접 설정', min: v, colorIdx: 6 };
+  mockTotalSec = v * 60;
+  mockRemainSec = mockTotalSec;
+  document.getElementById('mockCustomMin').value = '';
+  document.querySelectorAll('.mock-preset-btn').forEach(b => b.classList.remove('selected'));
+  mockUpdateDisplay();
+  showToast(`${v}분으로 설정됐어요`);
+}
+
+function mockStart() {
+  mockRunning = true;
+  document.getElementById('mockBtnStart').style.display = 'none';
+  document.getElementById('mockBtnPause').style.display = '';
+  mockInterval = setInterval(mockTick, 1000);
+}
+
+function mockPause() {
+  mockRunning = false;
+  clearInterval(mockInterval);
+  document.getElementById('mockBtnStart').style.display = '';
+  document.getElementById('mockBtnStart').textContent = '계속';
+  document.getElementById('mockBtnPause').style.display = 'none';
+}
+
+function mockReset() {
+  if (!confirm('타이머를 초기화할까요?')) return;
+  mockRunning = false;
+  clearInterval(mockInterval);
+  mockRemainSec = mockTotalSec;
+  document.getElementById('mockBtnStart').style.display = '';
+  document.getElementById('mockBtnStart').textContent = '시작';
+  document.getElementById('mockBtnPause').style.display = 'none';
+  document.getElementById('mockWarning').style.display = 'none';
+  mockUpdateDisplay();
+}
+
+function mockTick() {
+  if (mockRemainSec <= 0) {
+    clearInterval(mockInterval);
+    mockRunning = false;
+    mockDone();
+    return;
+  }
+  mockRemainSec--;
+  mockUpdateDisplay();
+}
+
+function mockUpdateDisplay() {
+  const m = Math.floor(mockRemainSec / 60);
+  const s = mockRemainSec % 60;
+  const digits = document.getElementById('mockDigits');
+  const fill = document.getElementById('mockProgressFill');
+  const lbl = document.getElementById('mockTimeLbl');
+  const warn = document.getElementById('mockWarning');
+  const subLbl = document.getElementById('mockSubjectLbl');
+
+  subLbl.textContent = mockSelected.name;
+  digits.textContent = `${pad(m)}:${pad(s)}`;
+
+  const elapsed = mockTotalSec - mockRemainSec;
+  const pct = Math.round(elapsed / mockTotalSec * 100);
+  const remainPct = 100 - pct;
+  fill.style.width = remainPct + '%';
+  lbl.textContent = `${mockSelected.min}분 · ${pct}% 경과`;
+
+  // 경고 상태
+  digits.classList.remove('warn','danger');
+  warn.style.display = 'none';
+  fill.style.background = 'var(--accent)';
+
+  if (mockRemainSec <= 300) { // 5분 이하
+    digits.classList.add('danger');
+    fill.style.background = 'var(--danger)';
+    warn.style.display = '';
+    warn.textContent = '⚠️ 5분 남았어요!';
+  } else if (mockRemainSec <= 600) { // 10분 이하
+    digits.classList.add('warn');
+    fill.style.background = '#c0574a';
+    warn.style.display = '';
+    warn.textContent = '⏰ 10분 남았어요';
+  } else if (mockRemainSec <= mockTotalSec / 2) { // 절반 이하
+    fill.style.background = '#b07d30';
+  }
+}
+
+function mockDone() {
+  // 기록 저장
+  const record = {
+    subject: mockSelected.name,
+    min: mockSelected.min,
+    date: todayStr(),
+    time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})
+  };
+  mockHistory.unshift(record);
+  if (mockHistory.length > 20) mockHistory.pop();
+  localStorage.setItem('mock_history', JSON.stringify(mockHistory));
+
+  // Firebase 기록
+  if (typeof window.fbSave === 'function') save();
+
+  renderMockHistory();
+
+  // 종료 오버레이
+  const overlay = document.createElement('div');
+  overlay.className = 'mock-done-overlay';
+  overlay.innerHTML = `
+    <div class="mock-done-box">
+      <div class="mock-done-icon">🎉</div>
+      <div class="mock-done-title">시험 종료!</div>
+      <div class="mock-done-sub">${mockSelected.name} ${mockSelected.min}분 완료</div>
+      <button class="btn btn-accent" onclick="this.closest('.mock-done-overlay').remove(); mockReset()">확인</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // 알림음
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+    osc.start(); osc.stop(ctx.currentTime + 1.2);
+  } catch(e) {}
+}
+
+function renderMockHistory() {
+  const wrap = document.getElementById('mockHistoryList');
+  if (mockHistory.length === 0) {
+    wrap.innerHTML = '<div class="empty-msg">아직 기록이 없어요</div>'; return;
+  }
+  wrap.innerHTML = mockHistory.map(r => `
+    <div class="mock-history-item">
+      <div class="mock-h-subject">${esc(r.subject)}</div>
+      <div class="mock-h-time">${r.min}분</div>
+      <div class="mock-h-date">${r.date} ${r.time}</div>
+    </div>`).join('');
+}
 </script>
 </body>
 </html>
