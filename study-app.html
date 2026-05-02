@@ -442,7 +442,12 @@ select { cursor: pointer; }
   background: none; border: none; color: var(--text-muted);
   font-size: 0.75rem; cursor: pointer; text-decoration: underline;
 }
-.p-clear-btn:hover { color: var(--danger); }
+.h-edit-btn, .h-del-btn {
+  background: none; border: none; cursor: pointer; font-size: 0.8rem;
+  padding: 2px 4px; border-radius: 4px; color: var(--text-muted); flex-shrink: 0;
+}
+.h-edit-btn:hover { color: var(--accent); background: #fdf0e8; }
+.h-del-btn:hover  { color: var(--danger); background: #fdf0e8; }
 
 /* ══ 모의고사 타이머 ══ */
 .mock-presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -1205,12 +1210,14 @@ function renderStats() {
   }
   const hlist=document.getElementById('historyList');
   if (sessions.length===0) { hlist.innerHTML='<div class="empty-msg">아직 기록이 없어요</div>'; return; }
-  hlist.innerHTML=sessions.map(se=>`
+  hlist.innerHTML=sessions.map((se,i)=>`
     <div class="history-item">
       <div class="h-dot" style="background:${COLORS[se.colorIdx%COLORS.length]}"></div>
       <div class="h-sub">${esc(se.subjectName)}</div>
-      <div class="h-dur">${fmt(se.durationSec)}</div>
+      <div class="h-dur" id="hdur-${i}">${fmt(se.durationSec)}</div>
       <div class="h-time">${se.startTime}</div>
+      <button class="h-edit-btn" onclick="editSession(${i})" title="수정">✏️</button>
+      <button class="h-del-btn" onclick="deleteSession(${i})" title="삭제">×</button>
     </div>`).join('');
 }
 function loadWeeklyChart() {
@@ -1267,6 +1274,44 @@ function clearHistory() {
   if (!confirm('오늘 기록을 모두 초기화할까요?')) return;
   sessions=[]; recalcTotal(); save(); renderAll(); renderStats();
   showToast('기록이 초기화됐어요');
+}
+
+function deleteSession(i) {
+  if (!confirm('이 세션을 삭제할까요?')) return;
+  sessions.splice(i, 1);
+  recalcTotal(); save(); renderStats(); updateCatRing();
+  showToast('삭제됐어요');
+}
+
+function editSession(i) {
+  const se = sessions[i];
+  const h = Math.floor(se.durationSec / 3600);
+  const m = Math.floor((se.durationSec % 3600) / 60);
+  const s = se.durationSec % 60;
+  const durEl = document.getElementById(`hdur-${i}`);
+  if (!durEl) return;
+  durEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
+      <input type="number" id="eh-${i}" value="${h}" min="0" max="23" style="width:34px;padding:2px 3px;font-size:12px;border:1px solid var(--border);border-radius:5px;text-align:center">
+      <span style="font-size:11px;color:var(--text-muted)">h</span>
+      <input type="number" id="em-${i}" value="${m}" min="0" max="59" style="width:34px;padding:2px 3px;font-size:12px;border:1px solid var(--border);border-radius:5px;text-align:center">
+      <span style="font-size:11px;color:var(--text-muted)">m</span>
+      <input type="number" id="es-${i}" value="${s}" min="0" max="59" style="width:34px;padding:2px 3px;font-size:12px;border:1px solid var(--border);border-radius:5px;text-align:center">
+      <span style="font-size:11px;color:var(--text-muted)">s</span>
+      <button onclick="saveSession(${i})" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">저장</button>
+      <button onclick="renderStats()" style="padding:3px 8px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">취소</button>
+    </div>`;
+}
+
+function saveSession(i) {
+  const h = parseInt(document.getElementById(`eh-${i}`)?.value) || 0;
+  const m = parseInt(document.getElementById(`em-${i}`)?.value) || 0;
+  const s = parseInt(document.getElementById(`es-${i}`)?.value) || 0;
+  const newSec = h * 3600 + m * 60 + s;
+  if (newSec <= 0) { showToast('0보다 커야 해요'); return; }
+  sessions[i].durationSec = newSec;
+  recalcTotal(); save(); renderStats(); updateCatRing();
+  showToast('✅ 수정됐어요!');
 }
 
 // ═══════════════════════════════════
