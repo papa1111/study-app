@@ -7,7 +7,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -67,6 +67,22 @@
   window.fbSave = function(payload) {
     if (!auth.currentUser) return;
     set(dataRef, payload).catch(e => console.warn('Firebase 저장 실패:', e));
+  };
+
+  // 날짜별 기록 저장
+  window.fbSaveRecord = function(dateStr, record) {
+    if (!auth.currentUser) return;
+    const recRef = ref(db, `records/${dateStr}`);
+    set(recRef, record).catch(e => console.warn('기록 저장 실패:', e));
+  };
+
+  // 최근 기록 불러오기 (통계용)
+  window.fbLoadRecords = function(callback) {
+    if (!auth.currentUser) return;
+    const recRef = ref(db, 'records');
+    onValue(recRef, (snapshot) => {
+      callback(snapshot.val() || {});
+    }, { onlyOnce: true });
   };
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Nanum+Gothic+Coding:wght@400;700&display=swap" rel="stylesheet">
@@ -665,6 +681,10 @@ select { cursor: pointer; }
       <div class="history-list" id="historyList"><div class="empty-msg">아직 기록이 없어요</div></div>
       <button class="reset-btn" onclick="clearHistory()">기록 초기화</button>
     </div>
+    <div class="stats-card">
+      <div class="stats-title">최근 7일 공부 기록</div>
+      <div id="weeklyChart"><div class="chart-empty" style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:.85rem;">불러오는 중...</div></div>
+    </div>
   </div>
 </div>
 
@@ -781,8 +801,27 @@ function load() {
   const raw = localStorage.getItem('app3_subjects');
   subjects = raw ? JSON.parse(raw) : DEFAULT_SUBJECTS.map(s=>({...s}));
   if (savedDate && savedDate !== today) {
+    // 날짜 바뀜 → 전날 기록 Firebase에 저장 후 초기화
+    const prevSessions = JSON.parse(localStorage.getItem('app3_sessions')||'[]');
+    const prevGoal = parseInt(localStorage.getItem('app3_goal')||'0');
+    const prevTotal = prevSessions.reduce((a,s)=>a+s.durationSec,0);
+    if (prevTotal > 0 && typeof window.fbSaveRecord === 'function') {
+      const bySubject = {};
+      subjects.forEach(s => {
+        const sec = prevSessions.filter(se=>se.subjectId===s.id).reduce((a,se)=>a+se.durationSec,0);
+        if (sec > 0) bySubject[s.id] = { name: s.name, colorIdx: s.colorIdx, sec };
+      });
+      window.fbSaveRecord(savedDate, {
+        totalSec: prevTotal,
+        goalSec: prevGoal,
+        goalAchieved: prevGoal > 0 && prevTotal >= prevGoal,
+        sessionCount: prevSessions.length,
+        bySubject
+      });
+    }
+    // 체크리스트 완전 삭제, 세션/지문 초기화
     sessions = [];
-    tasks = (JSON.parse(localStorage.getItem('app3_tasks')||'[]')).map(t=>({...t,done:false}));
+    tasks = [];
     pRecords = [];
   } else {
     sessions = JSON.parse(localStorage.getItem('app3_sessions')||'[]');
@@ -802,7 +841,7 @@ function switchTab(name) {
   document.getElementById('page-'+name).classList.add('active');
   const idx = {main:0, passage:1, stats:2, settings:3}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
-  if (name==='stats')    renderStats();
+  if (name==='stats')    { renderStats(); loadWeeklyChart(); }
   if (name==='settings') renderSettings();
 }
 
@@ -1066,6 +1105,58 @@ function renderStats() {
       <div class="h-time">${se.startTime}</div>
     </div>`).join('');
 }
+function loadWeeklyChart() {
+  const wrap = document.getElementById('weeklyChart');
+  if (!wrap) return;
+  if (typeof window.fbLoadRecords !== 'function') {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:12px">로그인 후 이용 가능해요</div>';
+    return;
+  }
+  window.fbLoadRecords((records) => {
+    // 최근 7일 날짜 생성
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0,10));
+    }
+    // 오늘 데이터도 포함
+    const todayData = { totalSec: totalTodaySec, goalSec, goalAchieved: goalSec > 0 && totalTodaySec >= goalSec };
+    const allData = { ...records, [todayStr()]: todayData };
+    const maxSec = Math.max(...days.map(d => allData[d]?.totalSec || 0), 1);
+
+    if (maxSec === 1 && days.every(d => !allData[d]?.totalSec)) {
+      wrap.innerHTML = '<div style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:12px">아직 기록이 없어요</div>';
+      return;
+    }
+
+    const dayLabels = ['일','월','화','수','목','금','토'];
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px 0;">
+        ${days.map(d => {
+          const sec = allData[d]?.totalSec || 0;
+          const pct = (sec / maxSec * 100).toFixed(1);
+          const achieved = allData[d]?.goalAchieved;
+          const isToday = d === todayStr();
+          const label = dayLabels[new Date(d).getDay()];
+          const mm = Math.floor(sec/60);
+          const hh = Math.floor(mm/60);
+          const tip = sec > 0 ? (hh > 0 ? `${hh}h${mm%60}m` : `${mm}m`) : '-';
+          return `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+              <div style="font-size:.68rem;color:var(--text-muted)">${tip}</div>
+              <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
+                <div style="width:100%;height:${pct}%;min-height:${sec>0?'4px':'0'};background:${achieved?'var(--green)':isToday?'var(--accent)':'#c8bdb5'};border-radius:4px 4px 0 0;transition:height .4s"></div>
+              </div>
+              <div style="font-size:.72rem;color:${isToday?'var(--accent)':'var(--text-muted)'};font-weight:${isToday?'700':'400'}">${label}</div>
+            </div>`;
+        }).join('')}
+      </div>
+      <div style="font-size:.7rem;color:var(--text-muted);margin-top:8px;text-align:center">
+        🟤 진행 중 &nbsp; 🟢 목표 달성
+      </div>`;
+  });
+}
+
 function clearHistory() {
   if (!confirm('오늘 기록을 모두 초기화할까요?')) return;
   sessions=[]; recalcTotal(); save(); renderAll(); renderStats();
