@@ -449,7 +449,22 @@ select { cursor: pointer; }
 .h-edit-btn:hover { color: var(--accent); background: #fdf0e8; }
 .h-del-btn:hover  { color: var(--danger); background: #fdf0e8; }
 
-/* ══ 모의고사 타이머 ══ */
+/* ══ 통계 서브탭 ══ */
+.stats-subtabs {
+  display: flex; gap: 6px; margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px;
+}
+.stats-subtab {
+  flex: 1; padding: 7px 4px; border: none; border-radius: 7px;
+  background: none; font-family: 'Gowun Dodum', sans-serif;
+  font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
+  transition: all .15s;
+}
+.stats-subtab.active { background: var(--accent); color: #fff; font-weight: 700; }
+.stats-subtab:hover:not(.active) { background: var(--surface2); }
+.stats-section { display: none; }
+.stats-section.active { display: block; }
 .mock-presets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .mock-preset-btn {
   padding: 10px 8px; border: 1.5px solid var(--border); border-radius: 10px;
@@ -827,69 +842,70 @@ select { cursor: pointer; }
 <div class="page" id="page-stats">
   <div class="stats-page">
 
-    <!-- 오늘의 명언 -->
-    <div class="stats-card" id="quoteCard" style="background:linear-gradient(135deg,#fdf0e8,#fdf8f4);border-color:#f0d4bc">
-      <div style="font-size:1.1rem;margin-bottom:6px">💬</div>
-      <div id="quoteText" style="font-size:0.88rem;color:var(--text);line-height:1.7;font-style:italic"></div>
-      <div id="quoteAuthor" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;text-align:right"></div>
+    <!-- 서브탭 버튼 -->
+    <div class="stats-subtabs">
+      <button class="stats-subtab active" onclick="switchStatTab('today',this)">오늘</button>
+      <button class="stats-subtab" onclick="switchStatTab('history',this)">히스토리</button>
+      <button class="stats-subtab" onclick="switchStatTab('level',this)">레벨</button>
+      <button class="stats-subtab" onclick="switchStatTab('config',this)">설정</button>
     </div>
 
-    <!-- 레벨 + 누적 -->
-    <div class="stats-card">
-      <div class="stats-title">나의 레벨</div>
-      <div id="levelDisplay" style="text-align:center;padding:8px 0"></div>
-    </div>
-
-    <!-- D-day 설정 -->
-    <div class="stats-card">
-      <div class="stats-title">시험 D-day</div>
-      <div id="ddayDisplay" style="margin-bottom:10px"></div>
-      <div class="row" style="gap:8px">
-        <input type="text" id="ddayName" placeholder="시험 이름 (예: 수능)" style="flex:1">
-        <input type="date" id="ddayDate" style="flex:1">
-        <button class="btn btn-accent" onclick="saveDday()">설정</button>
+    <!-- 오늘 -->
+    <div class="stats-section active" id="stab-today">
+      <div class="stats-card">
+        <div class="stats-title">오늘 요약</div>
+        <div class="summary-grid">
+          <div class="summary-item"><div class="summary-val" id="statTotal">0h 0m</div><div class="summary-lbl">총 공부 시간</div></div>
+          <div class="summary-item"><div class="summary-val" id="statSessions">0</div><div class="summary-lbl">세션 수</div></div>
+          <div class="summary-item"><div class="summary-val" id="statTasks">0/0</div><div class="summary-lbl">할 일 완료</div></div>
+        </div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-title">과목별 공부 시간</div>
+        <div class="chart-wrap" id="chartWrap"><div class="chart-empty">아직 기록이 없어요</div></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-title">세션 기록</div>
+        <div class="history-list" id="historyList"><div class="empty-msg">아직 기록이 없어요</div></div>
+        <button class="reset-btn" onclick="clearHistory()">기록 초기화</button>
       </div>
     </div>
 
-    <!-- 오늘 요약 -->
-    <div class="stats-card">
-      <div class="stats-title">오늘 요약</div>
-      <div class="summary-grid">
-        <div class="summary-item"><div class="summary-val" id="statTotal">0h 0m</div><div class="summary-lbl">총 공부 시간</div></div>
-        <div class="summary-item"><div class="summary-val" id="statSessions">0</div><div class="summary-lbl">세션 수</div></div>
-        <div class="summary-item"><div class="summary-val" id="statTasks">0/0</div><div class="summary-lbl">할 일 완료</div></div>
+    <!-- 히스토리 -->
+    <div class="stats-section" id="stab-history">
+      <div class="stats-card">
+        <div class="stats-title">최근 7일 공부 기록</div>
+        <div id="weeklyChart"><div class="chart-empty" style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:.85rem;">불러오는 중...</div></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-title">공부 히트맵 (최근 12주)</div>
+        <div id="heatmapWrap" style="overflow-x:auto"><div class="chart-empty" style="padding:12px 0;text-align:center;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-title">과목별 누적 시간 (전체)</div>
+        <div class="chart-wrap" id="accumChartWrap"><div class="chart-empty">불러오는 중...</div></div>
       </div>
     </div>
 
-    <!-- 과목별 오늘 -->
-    <div class="stats-card">
-      <div class="stats-title">과목별 공부 시간 (오늘)</div>
-      <div class="chart-wrap" id="chartWrap"><div class="chart-empty">아직 기록이 없어요</div></div>
+    <!-- 레벨 -->
+    <div class="stats-section" id="stab-level">
+      <div class="stats-card">
+        <div class="stats-title">나의 레벨</div>
+        <div id="levelDisplay" style="text-align:center;padding:8px 0"></div>
+      </div>
     </div>
 
-    <!-- 과목별 누적 -->
-    <div class="stats-card">
-      <div class="stats-title">과목별 누적 시간 (전체)</div>
-      <div class="chart-wrap" id="accumChartWrap"><div class="chart-empty">불러오는 중...</div></div>
-    </div>
-
-    <!-- 세션 기록 -->
-    <div class="stats-card">
-      <div class="stats-title">세션 기록</div>
-      <div class="history-list" id="historyList"><div class="empty-msg">아직 기록이 없어요</div></div>
-      <button class="reset-btn" onclick="clearHistory()">기록 초기화</button>
-    </div>
-
-    <!-- 최근 7일 -->
-    <div class="stats-card">
-      <div class="stats-title">최근 7일 공부 기록</div>
-      <div id="weeklyChart"><div class="chart-empty" style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:.85rem;">불러오는 중...</div></div>
-    </div>
-
-    <!-- 히트맵 -->
-    <div class="stats-card">
-      <div class="stats-title">공부 히트맵 (최근 12주)</div>
-      <div id="heatmapWrap" style="overflow-x:auto"><div class="chart-empty" style="padding:12px 0;text-align:center;color:var(--text-muted);font-size:.82rem;">불러오는 중...</div></div>
+    <!-- 설정 -->
+    <div class="stats-section" id="stab-config">
+      <div class="stats-card">
+        <div class="stats-title">시험 D-day</div>
+        <div id="ddayDisplay" style="margin-bottom:10px"></div>
+        <div class="row" style="gap:8px">
+          <input type="text" id="ddayName" placeholder="시험 이름 (예: 수능)" style="flex:1">
+          <input type="date" id="ddayDate" style="flex:1">
+          <button class="btn btn-accent" onclick="saveDday()">설정</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1050,9 +1066,20 @@ function switchTab(name) {
   document.getElementById('page-'+name).classList.add('active');
   const idx = {main:0, passage:1, mock:2, stats:3, settings:4}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
-  if (name==='stats')    { renderStats(); loadWeeklyChart(); renderHeatmap(); renderAccumChart(); }
+  if (name==='stats')    { renderStats(); }
   if (name==='settings') renderSettings();
   if (name==='mock')     { renderMockPresets(); renderMockHistory(); }
+}
+
+function switchStatTab(name, el) {
+  document.querySelectorAll('.stats-subtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.stats-section').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('stab-'+name).classList.add('active');
+  if (name==='today')   { renderStats(); }
+  if (name==='history') { loadWeeklyChart(); renderHeatmap(); renderAccumChart(); }
+  if (name==='level')   { renderLevelDisplay(); }
+  if (name==='config')  { renderDdayDisplay(); }
 }
 
 // ═══════════════════════════════════
@@ -1289,7 +1316,6 @@ function renderChecklist() {
 // 통계
 // ═══════════════════════════════════
 function renderStats() {
-  initQuote();
   renderDdayDisplay();
   renderLevelDisplay();
   const h=Math.floor(totalTodaySec/3600), m=Math.floor((totalTodaySec%3600)/60);
@@ -1536,9 +1562,10 @@ function renderAll() {
 load();
 if (goalSec>0) document.getElementById('goalInput').value=Math.round(goalSec/3600);
 renderAll();
-initQuote();
 initDday();
 updateLevelBadge();
+renderMockPresets();
+renderMockHistory();
 
 // ═══════════════════════════════════
 // 명언
@@ -1591,7 +1618,10 @@ function updateLevelBadge() {
   const h = getTotalAccumHours();
   const lv = getLevel(h);
   const badge = document.getElementById('levelBadge');
-  if (badge) badge.textContent = `${lv.icon} ${lv.name.split(' ')[0]}`;
+  if (badge) {
+    badge.textContent = `${lv.icon} ${lv.name}`;
+    badge.style.display = '';
+  }
 }
 
 function renderLevelDisplay() {
@@ -1628,6 +1658,9 @@ function saveDday() {
   const date = document.getElementById('ddayDate')?.value;
   if (!name || !date) { showToast('이름과 날짜를 모두 입력해주세요'); return; }
   localStorage.setItem('dday', JSON.stringify({ name, date }));
+  // 입력창 초기화
+  document.getElementById('ddayName').value = '';
+  document.getElementById('ddayDate').value = '';
   renderDdayBadge();
   renderDdayDisplay();
   showToast('D-day가 설정됐어요!');
@@ -1636,7 +1669,8 @@ function saveDday() {
 function renderDdayBadge() {
   const raw = localStorage.getItem('dday');
   const badge = document.getElementById('ddayBadge');
-  if (!raw || !badge) return;
+  if (!badge) return;
+  if (!raw) { badge.style.display = 'none'; return; }
   const { name, date } = JSON.parse(raw);
   const diff = Math.ceil((new Date(date) - new Date(todayStr())) / 86400000);
   badge.style.display = '';
@@ -1658,13 +1692,15 @@ function renderDdayDisplay() {
         <div style="font-size:0.78rem;color:var(--text-muted)">${date}</div>
       </div>
       <div style="font-size:2rem;font-weight:700;color:var(--accent);font-family:'Nanum Gothic Coding',monospace">${diffText}</div>
-      <button onclick="localStorage.removeItem('dday');renderDdayBadge();renderDdayDisplay();" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem">×</button>
+      <button onclick="deleteDday()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem">×</button>
     </div>`;
-  // input에 기존값 채우기
-  const ni = document.getElementById('ddayName');
-  const di = document.getElementById('ddayDate');
-  if (ni) ni.value = name;
-  if (di) di.value = date;
+}
+
+function deleteDday() {
+  localStorage.removeItem('dday');
+  renderDdayBadge();
+  renderDdayDisplay();
+  showToast('D-day가 삭제됐어요');
 }
 
 // ═══════════════════════════════════
