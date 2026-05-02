@@ -175,6 +175,16 @@
     else if (hours >= 2) catEl.textContent = '😺';
     else catEl.textContent = '🙀';
 
+    // 체크리스트 달성률
+    const taskDone = d.tasksDone || 0;
+    const taskTotal = d.tasksTotal || 0;
+    const taskPct = taskTotal > 0 ? Math.round(taskDone / taskTotal * 100) : 0;
+    const taskEl = document.getElementById('taskPctDisplay');
+    if (taskEl) {
+      taskEl.textContent = taskTotal > 0 ? `${taskDone}/${taskTotal} (${taskPct}%)` : '없음';
+      taskEl.style.color = taskPct === 100 ? 'var(--green)' : 'var(--text)';
+    }
+
     // 응원 메시지
     const msg = document.getElementById('cheerMsg');
     if (d.isStudying) msg.textContent = '지금 열심히 공부하고 있어요! 💪';
@@ -183,9 +193,27 @@
     else if (hours >= 2) msg.textContent = '꾸준히 하고 있네요 😊';
     else if (hours > 0) msg.textContent = '공부 시작했어요!';
     else msg.textContent = '아직 공부를 시작하지 않았어요';
+
+    // D-day
+    renderMomDday();
   }
 
   function todayStr() { return new Date().toISOString().slice(0,10); }
+
+  function renderMomDday() {
+    const wrap = document.getElementById('momDday');
+    if (!wrap) return;
+    // Firebase records에서 dday 가져오기
+    const ddayRef = ref(db, 'dday');
+    onValue(ddayRef, (snap) => {
+      const d = snap.val();
+      if (!d) { wrap.style.display = 'none'; return; }
+      const diff = Math.ceil((new Date(d.date) - new Date(todayStr())) / 86400000);
+      const txt = diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day!' : `D+${Math.abs(diff)}`;
+      wrap.style.display = '';
+      wrap.innerHTML = `<span style="font-weight:700;color:var(--accent)">${d.name}</span> <span style="font-family:monospace;font-size:1rem;color:var(--accent)">${txt}</span>`;
+    }, { onlyOnce: true });
+  }
 
   function renderWeekly(records) {
     const wrap = document.getElementById('weeklyWrap');
@@ -483,7 +511,8 @@ body {
 <div id="appContent" style="display:none">
 <div class="header">
   <div class="header-title">🐱 우리 아이 공부 현황</div>
-  <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:4px;">
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:4px;flex-wrap:wrap">
+    <div id="momDday" style="display:none;font-size:0.78rem;background:#fdf0e8;border:1px solid #f0d4bc;border-radius:99px;padding:2px 12px;"></div>
     <span id="userInfo" style="font-size:0.72rem;color:var(--text-muted);"></span>
     <button onclick="googleLogout()" style="font-size:0.72rem;background:none;border:1px solid var(--border);border-radius:99px;padding:2px 10px;cursor:pointer;color:var(--text-muted);">로그아웃</button>
   </div>
@@ -511,10 +540,12 @@ body {
     <div class="card-lbl">공부 세션</div>
   </div>
 
-  <!-- 할 일 -->
+  <!-- 할 일 달성률 -->
   <div class="card">
     <div class="card-icon">✅</div>
-    <div class="card-val" id="taskCount">0 / 0</div>
+    <div class="card-val" id="taskPctDisplay">0/0</div>
+    <div class="card-lbl">할 일 완료</div>
+  </div>
     <div class="card-lbl">할 일 완료</div>
   </div>
 </div>
