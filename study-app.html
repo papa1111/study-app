@@ -49,13 +49,16 @@
     const userInfo = document.getElementById('userInfo');
     if (user) {
       if (user.email === ALLOWED_EMAIL) {
-        // 허용된 계정 → 앱 표시
         if (lockScreen) lockScreen.style.display = 'none';
         if (userInfo) { userInfo.textContent = user.email; userInfo.style.display = 'inline'; }
+        // 로그인 후 날짜 바뀐 경우 records 저장 (load()에서 못 한 경우 여기서 처리)
+        checkAndSavePrevDay();
       } else {
-        // 허용되지 않은 계정 → 로그아웃 + 오류 표시
-        signOut(auth);
-        if (lockError) lockError.textContent = '접근 권한이 없는 계정이에요 🙅';
+        setTimeout(() => signOut(auth), 2000);
+        if (lockError) {
+          lockError.textContent = '⛔ 접근 권한이 없는 계정이에요';
+          lockError.style.color = '#c0574a';
+        }
       }
     } else {
       if (lockScreen) lockScreen.style.display = 'flex';
@@ -449,6 +452,88 @@ select { cursor: pointer; }
 .h-edit-btn:hover { color: var(--accent); background: #fdf0e8; }
 .h-del-btn:hover  { color: var(--danger); background: #fdf0e8; }
 
+/* ══ CSS 고양이 ══ */
+#catWrap{display:flex;align-items:center;justify-content:center;height:100px;position:relative}
+.csscat{position:relative;width:80px;height:80px}
+.cc-body{position:absolute;bottom:0;left:10px;width:60px;height:48px;background:#e8c89a;border-radius:50% 50% 45% 45%}
+.cc-head{position:absolute;bottom:38px;left:14px;width:52px;height:46px;background:#e8c89a;border-radius:50%;z-index:2}
+.cc-ear-l,.cc-ear-r{position:absolute;width:0;height:0;z-index:1}
+.cc-ear-l{border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:18px solid #e8c89a;top:-10px;left:4px}
+.cc-ear-r{border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:18px solid #e8c89a;top:-10px;right:4px}
+.cc-ear-in-l,.cc-ear-in-r{position:absolute;width:0;height:0;z-index:3}
+.cc-ear-in-l{border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #f0a0a0;top:-7px;left:8px}
+.cc-ear-in-r{border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #f0a0a0;top:-7px;right:8px}
+.cc-eye-l,.cc-eye-r{position:absolute;width:10px;height:10px;background:#3a2a1a;border-radius:50%;top:14px}
+.cc-eye-l{left:10px}.cc-eye-r{right:10px}
+.cc-nose{position:absolute;width:6px;height:5px;background:#f08080;border-radius:50%;top:26px;left:23px}
+.cc-wl1,.cc-wl2,.cc-wr1,.cc-wr2{position:absolute;height:1.5px;background:#8a7060;border-radius:1px}
+.cc-wl1{width:16px;left:2px;top:27px;transform:rotate(-8deg)}
+.cc-wl2{width:14px;left:3px;top:31px;transform:rotate(6deg)}
+.cc-wr1{width:16px;right:2px;top:27px;transform:rotate(8deg)}
+.cc-wr2{width:14px;right:3px;top:31px;transform:rotate(-6deg)}
+.cc-tail{position:absolute;bottom:4px;right:-14px;width:26px;height:12px;background:#e8c89a;border-radius:0 50% 50% 0;transform-origin:left center}
+.cc-stripe{position:absolute;background:#c8a070;border-radius:2px;opacity:.4}
+.cc-book{position:absolute;bottom:-6px;left:0;width:42px;height:28px;background:#5b7fa6;border-radius:3px;z-index:5}
+.cc-book::after{content:'';position:absolute;left:50%;top:3px;bottom:3px;width:1.5px;background:rgba(255,255,255,.4)}
+.cc-paw-l{position:absolute;bottom:10px;left:4px;width:14px;height:9px;background:#e8c89a;border-radius:50% 50% 40% 40%;z-index:6}
+.cc-paw-r{position:absolute;bottom:10px;right:4px;width:14px;height:9px;background:#e8c89a;border-radius:50% 50% 40% 40%;z-index:6}
+.cs-rest .cc-body{width:80px;left:0;height:34px;border-radius:40px}
+.cs-rest .cc-head{bottom:18px;left:-6px;width:44px;height:40px}
+.cs-rest .cc-eye-l,.cs-rest .cc-eye-r{height:2px;border-radius:1px;top:18px;width:12px}
+.cs-rest .cc-eye-l{left:7px}.cs-rest .cc-eye-r{right:7px}
+.cs-rest .cc-ear-l{top:-8px;left:2px}.cs-rest .cc-ear-r{top:-8px;right:14px}
+.cs-rest .cc-ear-in-l{top:-6px;left:6px}.cs-rest .cc-ear-in-r{top:-6px;right:18px}
+.cs-rest .cc-nose{top:22px;left:16px}
+.cs-rest .cc-tail{bottom:2px;right:-10px;width:32px;height:14px;border-radius:0 50% 50% 50%;animation:restTail 3s ease-in-out infinite}
+.cs-rest .zzz{position:absolute;top:-20px;right:-4px;font-size:13px;color:#9a9088;font-weight:700;animation:zzz 2s ease-in-out infinite}
+@keyframes restTail{0%,100%{transform:rotate(0)}50%{transform:rotate(15deg)}}
+@keyframes zzz{0%,100%{opacity:.2;transform:translateY(0)}50%{opacity:1;transform:translateY(-5px)}}
+.cs-s1 .cc-tail{animation:tail1 2s ease-in-out infinite}
+.cs-s1 .cc-eye-l,.cs-s1 .cc-eye-r{animation:blink1 4s ease-in-out infinite}
+@keyframes tail1{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(20deg)}}
+@keyframes blink1{0%,88%,100%{transform:scaleY(1)}94%{transform:scaleY(0.1)}}
+.cs-s2 .cc-eye-l,.cs-s2 .cc-eye-r{width:12px;height:12px;background:#2a1a0a}
+.cs-s2 .cc-eye-l::after,.cs-s2 .cc-eye-r::after{content:'';position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;top:1px;left:1px}
+.cs-s2 .cc-ear-l{animation:earUp 1.5s ease-in-out infinite}
+.cs-s2 .cc-ear-r{animation:earUp 1.5s ease-in-out infinite .2s}
+@keyframes earUp{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.15) translateY(-2px)}}
+.cs-s2 .cc-tail{animation:tail2 1.2s ease-in-out infinite}
+@keyframes tail2{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(30deg)}}
+.cs-s2 .focus-ring{position:absolute;width:72px;height:72px;border:2px solid rgba(91,127,166,.3);border-radius:50%;top:-4px;left:4px;animation:focusPulse 1.5s ease-in-out infinite}
+@keyframes focusPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.08);opacity:1}}
+.cs-s3 .cc-eye-l,.cs-s3 .cc-eye-r{height:7px;border-radius:3px;top:15px}
+.cs-s3 .cc-tail{animation:tail3 .9s ease-in-out infinite}
+@keyframes tail3{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(25deg)}}
+.cs-s3 .pencil{position:absolute;bottom:2px;right:-4px;width:6px;height:28px;background:#f0c040;border-radius:2px 2px 0 0;z-index:6;transform:rotate(-20deg)}
+.cs-s3 .pencil::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:6px solid #e08030}
+.cs-s3 .sweat{position:absolute;top:-4px;right:2px;width:8px;height:10px;background:#a0c8f0;border-radius:50% 50% 50% 0;transform:rotate(30deg);animation:sweat 2s ease-in-out infinite}
+@keyframes sweat{0%,100%{transform:rotate(30deg) translateY(0);opacity:1}50%{transform:rotate(30deg) translateY(3px);opacity:.6}}
+.cs-s4 .cc-eye-l,.cs-s4 .cc-eye-r{height:5px;border-radius:2px;top:16px;background:#5a4a3a}
+.cs-s4 .cc-eye-l::after,.cs-s4 .cc-eye-r::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:50%;background:#e8c89a;border-radius:0 0 2px 2px}
+.cs-s4 .cc-head{animation:nod 3s ease-in-out infinite}
+@keyframes nod{0%,100%{transform:rotate(0)}50%{transform:rotate(8deg)}}
+.cs-s4 .cc-tail{animation:tired 4s ease-in-out infinite}
+@keyframes tired{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(-10deg)}}
+.cs-s4 .dots{position:absolute;top:-22px;left:18px;font-size:14px;color:#9a9088;letter-spacing:2px;animation:dots1 2s ease-in-out infinite}
+@keyframes dots1{0%,100%{opacity:.3}50%{opacity:1}}
+.cs-s4 .coffee{position:absolute;bottom:-8px;right:-6px;width:20px;height:18px;background:#8b5e3c;border-radius:3px 3px 5px 5px;z-index:6}
+.cs-s4 .coffee::before{content:'';position:absolute;top:-6px;left:3px;width:14px;height:8px;border:2px solid #c8a070;border-bottom:none;border-radius:6px 6px 0 0}
+.cs-s4 .steam{position:absolute;top:-14px;left:6px;font-size:10px;color:#9a9088;animation:steam1 1.5s ease-in-out infinite}
+@keyframes steam1{0%,100%{opacity:0;transform:translateY(0)}50%{opacity:.8;transform:translateY(-4px)}}
+.cs-s5{animation:proud 2s ease-in-out infinite}
+@keyframes proud{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.cs-s5 .cc-tail{animation:wagFast .6s ease-in-out infinite}
+@keyframes wagFast{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(35deg)}}
+.cs-s5 .crown{position:absolute;top:-20px;left:8px;z-index:10}
+.cs-s5 .crown-base{width:36px;height:10px;background:#f0c040;border-radius:0 0 3px 3px}
+.cs-s5 .crown-p1,.cs-s5 .crown-p2,.cs-s5 .crown-p3{position:absolute;bottom:8px;width:0;height:0}
+.cs-s5 .crown-p1{border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid #f0c040;left:0}
+.cs-s5 .crown-p2{border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:18px solid #f0c040;left:11px}
+.cs-s5 .crown-p3{border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid #f0c040;right:0}
+.cs-s5 .cstar{position:absolute;font-size:12px;animation:twinkle1 1s ease-in-out infinite}
+.cs-s5 .cstar1{top:-8px;left:-6px}.cs-s5 .cstar2{top:-12px;right:-4px;animation-delay:.4s}
+@keyframes twinkle1{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+
 /* ══ 통계 서브탭 ══ */
 .stats-subtabs {
   display: flex; gap: 6px; margin-bottom: 14px;
@@ -682,58 +767,9 @@ select { cursor: pointer; }
       <div class="panel">
         <div class="panel-body">
           <div class="cat-area">
-            <div class="cat-label" id="catLabel">앉아서 기다리는 중 😺</div>
-            <div class="cat-wrap">
-              <svg class="ring-wrap" width="120" height="120" viewBox="0 0 120 120">
-                <circle class="ring-bg" cx="60" cy="60" r="54" fill="none" stroke-width="5"/>
-                <circle class="ring-fill" id="progressRing" cx="60" cy="60" r="54" fill="none"
-                  stroke-width="5" stroke-dasharray="339.3" stroke-dashoffset="339.3" transform="rotate(-90 60 60)"/>
-              </svg>
-              <svg id="cat0" width="84" height="84" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="45" cy="62" rx="24" ry="18" fill="#f0c080"/>
-                <path d="M21 72 Q10 80 14 68 Q18 56 21 62" stroke="#e0a060" stroke-width="5" fill="none" stroke-linecap="round"/>
-                <circle cx="45" cy="38" r="20" fill="#f0c080"/>
-                <polygon points="28,22 22,10 34,18" fill="#f0c080"/><polygon points="62,22 68,10 56,18" fill="#f0c080"/>
-                <polygon points="29,20 24,12 33,18" fill="#e8a0a0"/><polygon points="61,20 66,12 57,18" fill="#e8a0a0"/>
-                <ellipse cx="37" cy="36" rx="4" ry="4.5" fill="#3a2a1a"/><ellipse cx="53" cy="36" rx="4" ry="4.5" fill="#3a2a1a"/>
-                <circle cx="38.5" cy="34.5" r="1.2" fill="white"/><circle cx="54.5" cy="34.5" r="1.2" fill="white"/>
-                <ellipse cx="45" cy="43" rx="2.5" ry="1.8" fill="#e07080"/>
-                <line x1="30" y1="43" x2="42" y2="44" stroke="#ccc" stroke-width="1"/><line x1="30" y1="46" x2="42" y2="46" stroke="#ccc" stroke-width="1"/>
-                <line x1="48" y1="44" x2="60" y2="43" stroke="#ccc" stroke-width="1"/><line x1="48" y1="46" x2="60" y2="46" stroke="#ccc" stroke-width="1"/>
-              </svg>
-              <svg id="cat1" width="84" height="84" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg" style="display:none">
-                <ellipse cx="45" cy="50" rx="26" ry="20" fill="#f0c080"/>
-                <ellipse cx="45" cy="52" rx="16" ry="12" fill="#fde8c0"/>
-                <ellipse cx="30" cy="38" rx="7" ry="5" fill="#f0c080" transform="rotate(-20 30 38)"/>
-                <ellipse cx="60" cy="38" rx="7" ry="5" fill="#f0c080" transform="rotate(20 60 38)"/>
-                <ellipse cx="28" cy="64" rx="7" ry="5" fill="#f0c080" transform="rotate(15 28 64)"/>
-                <ellipse cx="62" cy="64" rx="7" ry="5" fill="#f0c080" transform="rotate(-15 62 64)"/>
-                <path d="M68 55 Q80 48 76 62 Q72 72 65 65" stroke="#e0a060" stroke-width="5" fill="none" stroke-linecap="round"/>
-                <circle cx="45" cy="24" r="18" fill="#f0c080"/>
-                <polygon points="30,36 24,46 36,38" fill="#f0c080"/><polygon points="60,36 66,46 54,38" fill="#f0c080"/>
-                <polygon points="31,36 25,44 35,37" fill="#e8a0a0"/><polygon points="59,36 65,44 55,37" fill="#e8a0a0"/>
-                <path d="M34 23 Q37 21 40 23" stroke="#3a2a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
-                <path d="M50 23 Q53 21 56 23" stroke="#3a2a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
-                <ellipse cx="45" cy="28" rx="2.5" ry="1.8" fill="#e07080"/>
-                <path d="M42 31 Q45 34 48 31" stroke="#c06070" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-              </svg>
-              <svg id="cat2" width="84" height="84" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg" style="display:none">
-                <ellipse cx="45" cy="62" rx="24" ry="18" fill="#f0c080"/>
-                <g class="tail-wag">
-                  <path d="M21 62 Q8 50 12 40 Q16 30 22 38" stroke="#e0a060" stroke-width="5" fill="none" stroke-linecap="round"/>
-                  <path d="M16 34 Q18 30 22 34 Q26 30 28 34 Q28 40 22 44 Q16 40 16 34Z" fill="#e07080"/>
-                </g>
-                <circle cx="45" cy="38" r="20" fill="#f0c080"/>
-                <polygon points="28,22 22,10 34,18" fill="#f0c080"/><polygon points="62,22 68,10 56,18" fill="#f0c080"/>
-                <polygon points="29,20 24,12 33,18" fill="#e8a0a0"/><polygon points="61,20 66,12 57,18" fill="#e8a0a0"/>
-                <ellipse cx="37" cy="36" rx="5" ry="5.5" fill="#3a2a1a"/><ellipse cx="53" cy="36" rx="5" ry="5.5" fill="#3a2a1a"/>
-                <circle cx="39" cy="34" r="1.5" fill="white"/><circle cx="55" cy="34" r="1.5" fill="white"/>
-                <ellipse cx="30" cy="44" rx="6" ry="3.5" fill="#f0a0a0" opacity="0.5"/><ellipse cx="60" cy="44" rx="6" ry="3.5" fill="#f0a0a0" opacity="0.5"/>
-                <ellipse cx="45" cy="43" rx="2.5" ry="1.8" fill="#e07080"/>
-                <path d="M41 47 Q45 51 49 47" stroke="#c06070" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-                <line x1="30" y1="43" x2="42" y2="44" stroke="#ccc" stroke-width="1"/><line x1="30" y1="46" x2="42" y2="46" stroke="#ccc" stroke-width="1"/>
-                <line x1="48" y1="44" x2="60" y2="43" stroke="#ccc" stroke-width="1"/><line x1="48" y1="46" x2="60" y2="46" stroke="#ccc" stroke-width="1"/>
-              </svg>
+            <div class="cat-label" id="catLabel">쉬는 중</div>
+            <div class="cat-wrap" id="catWrap">
+              <!-- CSS 고양이가 JS로 동적 렌더됨 -->
             </div>
             <div class="total-time" id="totalTimeDisplay">00:00:00</div>
             <div class="goal-mini-bar"><div class="goal-mini-fill" id="goalMiniFill" style="width:0%"></div></div>
@@ -1016,25 +1052,11 @@ function load() {
   const raw = localStorage.getItem('app3_subjects');
   subjects = raw ? JSON.parse(raw) : DEFAULT_SUBJECTS.map(s=>({...s}));
   if (savedDate && savedDate !== today) {
-    // 날짜 바뀜 → 전날 기록 Firebase에 저장 후 초기화
-    const prevSessions = JSON.parse(localStorage.getItem('app3_sessions')||'[]');
-    const prevGoal = parseInt(localStorage.getItem('app3_goal')||'0');
-    const prevTotal = prevSessions.reduce((a,s)=>a+s.durationSec,0);
-    if (prevTotal > 0 && typeof window.fbSaveRecord === 'function') {
-      const bySubject = {};
-      subjects.forEach(s => {
-        const sec = prevSessions.filter(se=>se.subjectId===s.id).reduce((a,se)=>a+se.durationSec,0);
-        if (sec > 0) bySubject[s.id] = { name: s.name, colorIdx: s.colorIdx, sec };
-      });
-      window.fbSaveRecord(savedDate, {
-        totalSec: prevTotal,
-        goalSec: prevGoal,
-        goalAchieved: prevGoal > 0 && prevTotal >= prevGoal,
-        sessionCount: prevSessions.length,
-        bySubject
-      });
-    }
-    // 체크리스트 완전 삭제, 세션/지문 초기화
+    // 날짜 바뀜 → localStorage에 이전날 데이터 임시 보관
+    localStorage.setItem('app3_prev_date', savedDate);
+    localStorage.setItem('app3_prev_sessions', localStorage.getItem('app3_sessions')||'[]');
+    localStorage.setItem('app3_prev_goal', localStorage.getItem('app3_goal')||'0');
+    // 초기화
     sessions = [];
     tasks = [];
     pRecords = [];
@@ -1045,6 +1067,37 @@ function load() {
   }
   goalSec = parseInt(localStorage.getItem('app3_goal')||'0');
   recalcTotal();
+}
+
+// 로그인 후 호출 — 이전날 데이터를 Firebase records에 저장
+function checkAndSavePrevDay() {
+  const prevDate = localStorage.getItem('app3_prev_date');
+  const today = todayStr();
+  if (!prevDate || prevDate === today) return;
+  const prevSessions = JSON.parse(localStorage.getItem('app3_prev_sessions')||'[]');
+  const prevGoal = parseInt(localStorage.getItem('app3_prev_goal')||'0');
+  const prevTotal = prevSessions.reduce((a,s)=>a+s.durationSec,0);
+  if (prevTotal > 0 && typeof window.fbSaveRecord === 'function') {
+    const rawSubjects = localStorage.getItem('app3_subjects');
+    const subs = rawSubjects ? JSON.parse(rawSubjects) : [];
+    const bySubject = {};
+    subs.forEach(s => {
+      const sec = prevSessions.filter(se=>se.subjectId===s.id).reduce((a,se)=>a+se.durationSec,0);
+      if (sec > 0) bySubject[s.id] = { name: s.name, colorIdx: s.colorIdx, sec };
+    });
+    window.fbSaveRecord(prevDate, {
+      totalSec: prevTotal,
+      goalSec: prevGoal,
+      goalAchieved: prevGoal > 0 && prevTotal >= prevGoal,
+      sessionCount: prevSessions.length,
+      bySubject
+    });
+    // 저장 완료 후 임시 데이터 제거
+    localStorage.removeItem('app3_prev_date');
+    localStorage.removeItem('app3_prev_sessions');
+    localStorage.removeItem('app3_prev_goal');
+    console.log(`✅ ${prevDate} 기록 Firebase에 저장 완료`);
+  }
 }
 function recalcTotal() {
   totalTodaySec = sessions.reduce((a,s)=>a+s.durationSec,0);
@@ -1166,7 +1219,9 @@ function stopTimer() {
       if (goalSec>0 && prev<goalSec && totalTodaySec>=goalSec) {
         setTimeout(()=>{ showGoalCelebration(); },400);
       }
-      save(); renderAll();
+      save();
+      saveRecordToday(); // 세션 끝날 때마다 오늘 기록 저장
+      renderAll();
     }
   }
   sessionSec=0;
@@ -1176,15 +1231,34 @@ function stopTimer() {
   document.getElementById('btnPause').style.display='none';
   document.getElementById('btnStop').style.display='none';
 }
+
 function tick() {
   sessionSec=Math.floor((Date.now()-sessionStart)/1000);
   document.getElementById('timerDigits').textContent=fmt(sessionSec);
-  // 총 공부 시간 + 링/목표바 실시간 업데이트
-  updateCatRing(totalTodaySec + sessionSec);
-  // 매초 Firebase에 실시간 상태 전송
+  updateCatRing(totalTodaySec + sessionSec, true);
   fbPushLive();
-  // 30초마다 localStorage 전체 저장
   if (sessionSec % 30 === 0) save();
+  // 30분마다 records 저장 (앱이 오래 켜져있을 때 대비)
+  if (sessionSec > 0 && sessionSec % 1800 === 0) saveRecordToday();
+}
+
+// 오늘 records를 Firebase에 저장 (세션 끝날 때 + 30분마다)
+function saveRecordToday() {
+  if (typeof window.fbSaveRecord !== 'function') return;
+  const total = totalTodaySec;
+  if (total <= 0) return;
+  const bySubject = {};
+  subjects.forEach(s => {
+    const sec = sessions.filter(se => se.subjectId === s.id).reduce((a, se) => a + se.durationSec, 0);
+    if (sec > 0) bySubject[s.id] = { name: s.name, colorIdx: s.colorIdx, sec };
+  });
+  window.fbSaveRecord(todayStr(), {
+    totalSec: total,
+    goalSec: goalSec,
+    goalAchieved: goalSec > 0 && total >= goalSec,
+    sessionCount: sessions.length,
+    bySubject
+  });
 }
 
 // 타이머 돌아가는 동안 매초 실시간 상태만 빠르게 업데이트
@@ -1218,26 +1292,72 @@ function setGoal() {
   goalSec=v*3600; save(); updateCatRing();
   showToast(`목표 ${v}시간 설정됐어요! 🎯`);
 }
-function updateCatRing(liveTotalSec) {
+function getCatState(liveTotalSec, isRunning) {
+  if (!isRunning) return 'rest';
+  const h = liveTotalSec / 3600;
+  if (h < 1) return 's1';
+  if (h < 2) return 's2';
+  if (h < 3) return 's3';
+  if (h < 4) return 's4';
+  return 's5';
+}
+
+function renderCssCat(state) {
+  const wrap = document.getElementById('catWrap');
+  if (!wrap) return;
+  const isRest = state === 'rest';
+  const cls = `csscat cs-${state}`;
+  const bodyExtra = isRest ? 'style="width:80px;left:0;"' : '';
+
+  const extras = {
+    rest: `<div class="zzz">z z z</div>`,
+    s1: `<div class="cc-book"></div><div class="cc-paw-l"></div><div class="cc-paw-r"></div>`,
+    s2: `<div class="focus-ring"></div><div class="cc-book"></div><div class="cc-paw-l"></div><div class="cc-paw-r"></div>`,
+    s3: `<div class="pencil"></div><div class="sweat"></div>`,
+    s4: `<div class="dots">...</div><div class="coffee"><div class="steam">~</div></div>`,
+    s5: `<div class="crown"><div class="crown-p1"></div><div class="crown-p2"></div><div class="crown-p3"></div><div class="crown-base"></div></div><div class="cstar cstar1">✦</div><div class="cstar cstar2">✦</div>`,
+  };
+
+  wrap.innerHTML = `
+    <div class="${cls}">
+      <div class="cc-body"><div class="cc-stripe" style="height:3px;top:8px;width:50px"></div></div>
+      <div class="cc-head">
+        <div class="cc-ear-l"></div><div class="cc-ear-r"></div>
+        <div class="cc-ear-in-l"></div><div class="cc-ear-in-r"></div>
+        <div class="cc-eye-l"></div><div class="cc-eye-r"></div>
+        <div class="cc-nose"></div>
+        <div class="cc-wl1"></div><div class="cc-wl2"></div>
+        <div class="cc-wr1"></div><div class="cc-wr2"></div>
+      </div>
+      <div class="cc-tail"></div>
+      ${extras[state] || ''}
+    </div>`;
+}
+
+const CAT_LABELS = {
+  rest: '쉬는 중 😴',
+  s1: '책 읽는 중 📖',
+  s2: '집중 모드 🔥',
+  s3: '열공 모드 ✏️',
+  s4: '지침 모드 ☕',
+  s5: '고수 모드 👑',
+};
+
+function updateCatRing(liveTotalSec, isRunning) {
   const displaySec = (liveTotalSec !== undefined) ? liveTotalSec : totalTodaySec;
-  const hours=displaySec/3600;
-  ['cat0','cat1','cat2'].forEach(id=>document.getElementById(id).style.display='none');
-  const lbl=document.getElementById('catLabel');
-  if (hours<2)      { document.getElementById('cat0').style.display=''; lbl.textContent='앉아서 기다리는 중 😺'; }
-  else if (hours<4) { document.getElementById('cat1').style.display=''; lbl.textContent='뒤집어진 고양이 🙃'; }
-  else              { document.getElementById('cat2').style.display=''; lbl.textContent='꼬리 흔드는 고양이 🐾'; }
-  document.getElementById('totalTimeDisplay').textContent=fmt(displaySec);
-  const ring=document.getElementById('progressRing');
-  const fill=document.getElementById('goalMiniFill');
-  const lbl2=document.getElementById('goalLbl');
-  if (goalSec>0) {
-    const pct=Math.min(displaySec/goalSec,1);
-    ring.setAttribute('stroke-dashoffset',(RING_C*(1-pct)).toFixed(1));
-    fill.style.width=(pct*100).toFixed(1)+'%';
-    lbl2.textContent=`목표: ${Math.floor(goalSec/3600)}h (${Math.floor(pct*100)}%)`;
+  const state = getCatState(displaySec, isRunning !== undefined ? isRunning : running);
+  renderCssCat(state);
+  document.getElementById('catLabel').textContent = CAT_LABELS[state];
+  document.getElementById('totalTimeDisplay').textContent = fmt(displaySec);
+  const fill = document.getElementById('goalMiniFill');
+  const lbl2 = document.getElementById('goalLbl');
+  if (goalSec > 0) {
+    const pct = Math.min(displaySec / goalSec, 1);
+    fill.style.width = (pct * 100).toFixed(1) + '%';
+    lbl2.textContent = `목표: ${Math.floor(goalSec/3600)}h (${Math.floor(pct*100)}%)`;
   } else {
-    ring.setAttribute('stroke-dashoffset',RING_C);
-    fill.style.width='0%'; lbl2.textContent='목표: 미설정';
+    fill.style.width = '0%';
+    lbl2.textContent = '목표: 미설정';
   }
 }
 
