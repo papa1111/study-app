@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>공부 도우미</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23fdf8f4'/><text y='72' x='50' text-anchor='middle' font-size='62'>🐱</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -30,6 +30,7 @@
   window.googleLogin = async function() {
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch(e) { console.warn('로그인 실패:', e); }
   };
@@ -256,6 +257,8 @@ select { cursor: pointer; }
 .task-tag { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; background: var(--surface2); padding: 2px 6px; border-radius: 99px; }
 .task-del { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.95rem; padding:1px 3px; border-radius:4px; flex-shrink:0; }
 .task-del:hover { color: var(--danger); }
+.task-edit { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.78rem; padding:1px 4px; border-radius:4px; flex-shrink:0; }
+.task-edit:hover { color: var(--accent); }
 .all-done { text-align:center; padding:18px 0 6px; display:none; font-size:0.92rem; color:var(--text-muted); animation: popIn 0.3s; }
 @keyframes popIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
 
@@ -452,7 +455,27 @@ select { cursor: pointer; }
 .h-edit-btn:hover { color: var(--accent); background: #fdf0e8; }
 .h-del-btn:hover  { color: var(--danger); background: #fdf0e8; }
 
-/* ══ CSS 고양이 ══ */
+/* ══ 플로팅 미니 타이머 ══ */
+.float-timer {
+  position: fixed; bottom: 20px; left: 20px; z-index: 8000;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 10px 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  display: none; align-items: center; gap: 10px;
+  cursor: pointer; transition: all .2s;
+  min-width: 160px;
+}
+.float-timer:hover { box-shadow: 0 6px 24px rgba(0,0,0,.18); transform: translateY(-2px); }
+.float-timer.visible { display: flex; }
+.float-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; animation: floatPulse 1.5s ease-in-out infinite; }
+@keyframes floatPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.float-label { font-size: 0.72rem; color: var(--text-muted); }
+.float-time { font-family: 'Nanum Gothic Coding', monospace; font-size: 1rem; font-weight: 700; color: var(--text); }
+.float-type { font-size: 0.68rem; color: var(--text-muted); }
+
+/* 조기종료 버튼 */
+.btn-danger { background: #c0574a; color: #fff; }
+.btn-danger:hover { background: #a04030; }
 #catWrap{display:flex;align-items:center;justify-content:center;height:100px;position:relative}
 .csscat{position:relative;width:80px;height:80px}
 .cc-body{position:absolute;bottom:0;left:10px;width:60px;height:48px;background:#e8c89a;border-radius:50% 50% 45% 45%}
@@ -702,6 +725,16 @@ select { cursor: pointer; }
 </head>
 <body>
 
+<!-- ══ 플로팅 미니 타이머 ══ -->
+<div class="float-timer" id="floatTimer" onclick="floatTimerClick()">
+  <div class="float-dot" id="floatDot"></div>
+  <div>
+    <div class="float-type" id="floatType"></div>
+    <div class="float-time" id="floatTime"></div>
+    <div class="float-label" id="floatLabel"></div>
+  </div>
+</div>
+
 <!-- ══ 구글 로그인 화면 ══ -->
 <div class="lock-screen" id="lockScreen">
   <div class="lock-box">
@@ -860,6 +893,7 @@ select { cursor: pointer; }
       <div class="btns" style="justify-content:center;margin-top:16px;gap:8px">
         <button class="btn btn-accent btn-lg" id="mockBtnStart" onclick="mockStart()">시작</button>
         <button class="btn btn-muted btn-lg"  id="mockBtnPause" onclick="mockPause()" style="display:none">일시정지</button>
+        <button class="btn btn-danger"        id="mockBtnEarly" onclick="mockEarlyEnd()" style="display:none">조기종료</button>
         <button class="btn btn-muted"         id="mockBtnReset" onclick="mockReset()">초기화</button>
       </div>
     </div>
@@ -1104,12 +1138,22 @@ function recalcTotal() {
 }
 
 function switchTab(name) {
+  // 지문↔모의고사 동시 실행 방지
+  if (name === 'mock' && pRunning) { showToast('지문 타이머 실행 중엔 모의고사를 시작할 수 없어요 🚫'); return; }
+  if (name === 'passage' && mockRunning) { showToast('모의고사 실행 중엔 지문 타이머를 시작할 수 없어요 🚫'); return; }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   const idx = {main:0, passage:1, mock:2, stats:3, settings:4}[name];
   document.querySelectorAll('.nav-tab')[idx].classList.add('active');
-  if (name==='stats')    { renderStats(); }
+  if (name==='stats') {
+    // 항상 오늘 탭으로 리셋
+    document.querySelectorAll('.stats-subtab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.stats-section').forEach(s=>s.classList.remove('active'));
+    document.querySelector('.stats-subtab').classList.add('active');
+    document.getElementById('stab-today').classList.add('active');
+    renderStats();
+  }
   if (name==='settings') renderSettings();
   if (name==='mock')     { setTimeout(()=>{ renderMockPresets(); renderMockHistory(); }, 0); }
 }
@@ -1235,10 +1279,16 @@ function stopTimer() {
 function tick() {
   sessionSec=Math.floor((Date.now()-sessionStart)/1000);
   document.getElementById('timerDigits').textContent=fmt(sessionSec);
-  updateCatRing(totalTodaySec + sessionSec, true);
+  const liveSec = totalTodaySec + sessionSec;
+  updateCatRing(liveSec, true);
+  // 목표 달성 후 초과 시간 표시
+  if (goalSec > 0 && liveSec > goalSec) {
+    const over = liveSec - goalSec;
+    const lbl = document.getElementById('goalLbl');
+    if (lbl) { lbl.textContent = `목표 달성 +${fmtShort(over)} 초과 🎉`; lbl.style.color = 'var(--green)'; }
+  }
   fbPushLive();
   if (sessionSec % 30 === 0) save();
-  // 30분마다 records 저장 (앱이 오래 켜져있을 때 대비)
   if (sessionSec > 0 && sessionSec % 1800 === 0) saveRecordToday();
 }
 
@@ -1403,6 +1453,31 @@ function toggleTask(id) {
 function deleteTask(id) {
   tasks=tasks.filter(t=>t.id!==id); save(); renderChecklist();
 }
+function editTask(id) {
+  const t = tasks.find(t=>t.id===id); if (!t) return;
+  const item = document.getElementById(`titem-${id}`);
+  if (!item) return;
+  const subOpts = subjects.map(s=>`<option value="${s.id}" ${s.id===t.subjectId?'selected':''}>${esc(s.name)}</option>`).join('');
+  item.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;width:100%;flex-wrap:wrap">
+      <input id="tedit-${id}" value="${esc(t.text)}" style="flex:1;min-width:100px;padding:4px 8px;border:1.5px solid var(--accent);border-radius:7px;font-family:inherit;font-size:.88rem;outline:none"
+        onkeydown="if(event.key==='Enter')saveTask('${id}')">
+      <select id="tedit-sub-${id}" style="padding:4px 6px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:.82rem;background:var(--surface2)">${subOpts}</select>
+      <button onclick="saveTask('${id}')" style="padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:.82rem;cursor:pointer;font-family:inherit">저장</button>
+      <button onclick="renderChecklist()" style="padding:4px 8px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);border-radius:7px;font-size:.82rem;cursor:pointer;font-family:inherit">취소</button>
+    </div>`;
+  document.getElementById(`tedit-${id}`)?.focus();
+}
+function saveTask(id) {
+  const t = tasks.find(t=>t.id===id); if (!t) return;
+  const newText = document.getElementById(`tedit-${id}`)?.value.trim();
+  const newSub = document.getElementById(`tedit-sub-${id}`)?.value;
+  if (!newText) { showToast('내용을 입력해주세요'); return; }
+  t.text = newText;
+  t.subjectId = newSub;
+  save(); renderChecklist();
+  showToast('✅ 수정됐어요!');
+}
 function renderChecklist() {
   renderClSubjectSelect(); renderClFilter();
   const filtered=clFilter==='all'?tasks:tasks.filter(t=>t.subjectId===clFilter);
@@ -1420,11 +1495,12 @@ function renderChecklist() {
   }
   list.innerHTML=sorted.map(t=>{
     const s=subjectById(t.subjectId);
-    return `<div class="task-item ${t.done?'done':''}">
+    return `<div class="task-item ${t.done?'done':''}" id="titem-${t.id}">
       <div class="task-check ${t.done?'checked':''}" onclick="toggleTask('${t.id}')"></div>
       <div class="task-dot" style="background:${s?color(s):'#ccc'}"></div>
       <div class="task-text">${esc(t.text)}</div>
       <div class="task-tag">${s?esc(s.name):''}</div>
+      <button class="task-edit" onclick="editTask('${t.id}')">✏️</button>
       <button class="task-del" onclick="deleteTask('${t.id}')">×</button>
     </div>`;
   }).join('');
@@ -1682,6 +1758,60 @@ if (goalSec>0) document.getElementById('goalInput').value=Math.round(goalSec/360
 renderAll();
 initDday();
 setTimeout(()=>{ renderMockPresets(); renderMockHistory(); }, 0);
+
+// ═══════════════════════════════════
+// 플로팅 미니 타이머
+// ═══════════════════════════════════
+let floatInterval = null;
+
+function updateFloatTimer() {
+  const ft = document.getElementById('floatTimer');
+  const ftDot = document.getElementById('floatDot');
+  const ftType = document.getElementById('floatType');
+  const ftTime = document.getElementById('floatTime');
+  const ftLabel = document.getElementById('floatLabel');
+  if (!ft) return;
+
+  // 현재 탭 확인
+  const activePage = document.querySelector('.page.active')?.id;
+
+  if (running) {
+    ft.classList.add('visible');
+    ftDot.style.background = 'var(--accent)';
+    ftType.textContent = '⏱ 공부 타이머';
+    ftTime.textContent = fmt(sessionSec);
+    const s = subjectById(selectedSubjectId);
+    ftLabel.textContent = s ? s.name : '';
+    // 메인 탭이면 숨기기
+    if (activePage === 'page-main') ft.classList.remove('visible');
+  } else if (pRunning) {
+    ft.classList.add('visible');
+    ftDot.style.background = '#6b8f71';
+    ftType.textContent = '📖 지문 타이머';
+    ftTime.textContent = `${pad(Math.floor(pSec/60))}:${pad(pSec%60)}`;
+    ftLabel.textContent = `지문 ${pNum}`;
+    if (activePage === 'page-passage') ft.classList.remove('visible');
+  } else if (mockRunning) {
+    ft.classList.add('visible');
+    ftDot.style.background = '#9b6bb5';
+    ftType.textContent = '🕐 모의고사';
+    const m = Math.floor(mockRemainSec/60), s2 = mockRemainSec%60;
+    ftTime.textContent = `${pad(m)}:${pad(s2)}`;
+    ftLabel.textContent = `${mockSelected.name} 남음`;
+    if (activePage === 'page-mock') ft.classList.remove('visible');
+  } else {
+    ft.classList.remove('visible');
+  }
+}
+
+function floatTimerClick() {
+  if (running) switchTab('main');
+  else if (pRunning) switchTab('passage');
+  else if (mockRunning) switchTab('mock');
+}
+
+// 플로팅 타이머 매초 업데이트
+setInterval(updateFloatTimer, 1000);
 
 // ═══════════════════════════════════
 // 명언
@@ -2024,6 +2154,7 @@ function mockStart() {
   mockRunning = true;
   document.getElementById('mockBtnStart').style.display = 'none';
   document.getElementById('mockBtnPause').style.display = '';
+  document.getElementById('mockBtnEarly').style.display = '';
   mockInterval = setInterval(mockTick, 1000);
 }
 
@@ -2035,6 +2166,37 @@ function mockPause() {
   document.getElementById('mockBtnPause').style.display = 'none';
 }
 
+function mockEarlyEnd() {
+  if (!confirm('조기종료 할까요?')) return;
+  clearInterval(mockInterval);
+  mockRunning = false;
+  const elapsed = mockTotalSec - mockRemainSec;
+  const remain = mockRemainSec;
+  document.getElementById('mockBtnStart').style.display = '';
+  document.getElementById('mockBtnStart').textContent = '시작';
+  document.getElementById('mockBtnPause').style.display = 'none';
+  document.getElementById('mockBtnEarly').style.display = 'none';
+  // 남은 시간 표시
+  const m = Math.floor(remain/60), s = remain%60;
+  document.getElementById('mockWarning').style.display = '';
+  document.getElementById('mockWarning').textContent = `⏱ 조기종료 — ${pad(m)}:${pad(s)} 남음`;
+  document.getElementById('mockWarning').style.color = 'var(--accent)';
+  // 기록 저장
+  const record = {
+    subject: mockSelected.name,
+    min: Math.floor(elapsed/60),
+    totalMin: mockSelected.min,
+    earlyEnd: true,
+    date: todayStr(),
+    time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})
+  };
+  mockHistory.unshift(record);
+  if (mockHistory.length > 20) mockHistory.pop();
+  localStorage.setItem('mock_history', JSON.stringify(mockHistory));
+  renderMockHistory();
+  showToast(`조기종료 — ${Math.floor(elapsed/60)}분 진행, ${Math.floor(remain/60)}분 남음`);
+}
+
 function mockReset() {
   if (!confirm('타이머를 초기화할까요?')) return;
   mockRunning = false;
@@ -2043,6 +2205,7 @@ function mockReset() {
   document.getElementById('mockBtnStart').style.display = '';
   document.getElementById('mockBtnStart').textContent = '시작';
   document.getElementById('mockBtnPause').style.display = 'none';
+  document.getElementById('mockBtnEarly').style.display = 'none';
   document.getElementById('mockWarning').style.display = 'none';
   mockUpdateDisplay();
 }
@@ -2145,8 +2308,8 @@ function renderMockHistory() {
   }
   wrap.innerHTML = mockHistory.map(r => `
     <div class="mock-history-item">
-      <div class="mock-h-subject">${esc(r.subject)}</div>
-      <div class="mock-h-time">${r.min}분</div>
+      <div class="mock-h-subject">${esc(r.subject)}${r.earlyEnd ? ' <span style="font-size:.7rem;color:var(--accent)">(조기종료)</span>' : ''}</div>
+      <div class="mock-h-time">${r.min}분${r.earlyEnd ? `<span style="font-size:.7rem;color:var(--text-muted)">/${r.totalMin}분</span>` : ''}</div>
       <div class="mock-h-date">${r.date} ${r.time}</div>
     </div>`).join('');
 }
