@@ -1289,7 +1289,9 @@ function fbPushLive() {
 function setGoal() {
   const v=parseInt(document.getElementById('goalInput').value);
   if (!v||v<1) { showToast('1 이상의 숫자를 입력해주세요'); return; }
-  goalSec=v*3600; save(); updateCatRing();
+  goalSec=v*3600; save();
+  // 일시정지 중이면 sessionSec 포함, 아니면 그냥 현재 상태 유지
+  updateCatRing(totalTodaySec + (paused ? sessionSec : 0), paused ? true : running);
   showToast(`목표 ${v}시간 설정됐어요! 🎯`);
 }
 function getCatState(liveTotalSec, isRunning) {
@@ -1343,11 +1345,18 @@ const CAT_LABELS = {
   s5: '고수 모드 👑',
 };
 
+let lastCatState = null;
+
 function updateCatRing(liveTotalSec, isRunning) {
   const displaySec = (liveTotalSec !== undefined) ? liveTotalSec : totalTodaySec;
   const state = getCatState(displaySec, isRunning !== undefined ? isRunning : running);
-  renderCssCat(state);
-  document.getElementById('catLabel').textContent = CAT_LABELS[state];
+  // 상태 바뀔 때만 고양이 다시 렌더 (애니메이션 끊김 방지)
+  if (state !== lastCatState) {
+    renderCssCat(state);
+    document.getElementById('catLabel').textContent = CAT_LABELS[state];
+    lastCatState = state;
+  }
+  // 시간/목표바는 매초 업데이트
   document.getElementById('totalTimeDisplay').textContent = fmt(displaySec);
   const fill = document.getElementById('goalMiniFill');
   const lbl2 = document.getElementById('goalLbl');
